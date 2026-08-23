@@ -1,0 +1,6 @@
+{
+  "name": "Gestión de negocio Limpieza",
+  "description": "Dashboard minimalista con control de operaciones, evidencias antes/después, reportes cada 3 días de insumos y finanzas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
