@@ -14,8 +14,18 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
       desc: 'Agenda diaria, fotos antes/después, reporte de fallas en PDF y control de almacén/insumos.',
       icon: HardHat,
       iconBg: 'bg-blue-100 text-blue-600',
-      badge: 'Campo Activo',
+      badge: 'Campo',
       accentColor: 'hover:border-blue-500 hover:shadow-blue-100/50',
+      active: true
+    },
+    {
+      id: 'client' as UserRole,
+      title: 'Portal de Cliente',
+      desc: 'Evidencias de trabajo, auditoría fotográfica y solicitud de insumos (reporte de 3 días).',
+      icon: Building2,
+      iconBg: 'bg-emerald-100 text-emerald-600',
+      badge: 'Transparencia',
+      accentColor: 'hover:border-emerald-500 hover:shadow-emerald-100/50',
       active: true
     },
     {
@@ -27,16 +37,6 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
       badge: 'Control Total',
       accentColor: 'hover:border-slate-800 hover:shadow-slate-200',
       active: true
-    },
-    {
-      id: 'client' as UserRole,
-      title: 'Portal de Cliente',
-      desc: 'Acceso en pausa por mantenimiento y configuración de nuevos accesos.',
-      icon: Building2,
-      iconBg: 'bg-slate-200 text-slate-500',
-      badge: 'Desactivado Temporalmente',
-      accentColor: '',
-      active: false
     }
   ];
 
@@ -57,13 +57,13 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
           Gestión de negocio Limpieza
         </h1>
         <p className="text-slate-500 text-base md:text-lg mt-3 font-normal max-w-xl mx-auto">
-          Selecciona tu rol operativo o administrativo para acceder a la plataforma
+          Selecciona tu rol para acceder a la plataforma centralizada
         </p>
       </header>
 
-      {/* Role Cards */}
+      {/* Role Cards: 3 columns on desktop, responsive on mobile */}
       <main className="max-w-5xl mx-auto w-full my-auto py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {roles
             .filter((r) => r.active)
             .map((role) => {
@@ -82,7 +82,7 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
                       >
                         <Icon className="w-7 h-7" />
                       </div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-blue-50 text-blue-700">
+                      <span className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-100 text-slate-600">
                         {role.badge}
                       </span>
                     </div>
@@ -105,13 +105,6 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
                 </button>
               );
             })}
-        </div>
-
-        {/* Client role disabled notice */}
-        <div className="mt-8 text-center">
-          <span className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100/80 text-slate-500 rounded-full text-xs font-semibold">
-            <Building2 className="w-3.5 h-3.5" /> Portal de Cliente desactivado temporalmente por configuración
-          </span>
         </div>
       </main>
 
