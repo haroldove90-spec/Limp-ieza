@@ -24,7 +24,9 @@ import {
   Send,
   Sparkles,
   RefreshCw,
-  Eye
+  Eye,
+  FileText,
+  Printer
 } from 'lucide-react';
 import {
   CleaningService,
@@ -35,9 +37,12 @@ import {
   ClientProfile,
   EmployeeProfile,
   TransactionRecord,
-  PhotoEvidence
+  PhotoEvidence,
+  Quotation
 } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
+import { IncidentReportModal } from '../../common/IncidentReportModal';
+import { QuotationManager } from './QuotationManager';
 
 interface AdminDashboardProps {
   activeTab: string;
@@ -49,6 +54,7 @@ interface AdminDashboardProps {
   clients: ClientProfile[];
   employees: EmployeeProfile[];
   finances: TransactionRecord[];
+  quotations: Quotation[];
   onApproveService: (serviceId: string) => void;
   onResolveIncident: (incidentId: string, resolution: string) => void;
   onUpdateSupplyStock: (supplyId: string, delta: number) => void;
@@ -58,6 +64,8 @@ interface AdminDashboardProps {
   onAddService: (service: Omit<CleaningService, 'id' | 'tasks' | 'evidences' | 'approvedByAdmin'>) => void;
   onAddTransaction: (transaction: Omit<TransactionRecord, 'id'>) => void;
   onToggleAutoReport: (clientId: string) => void;
+  onSaveQuotation: (quotation: Quotation) => void;
+  onUpdateQuotationStatus: (quotationId: string, status: Quotation['status']) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -70,6 +78,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   clients,
   employees,
   finances,
+  quotations,
   onApproveService,
   onResolveIncident,
   onUpdateSupplyStock,
@@ -78,10 +87,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onAddEmployee,
   onAddService,
   onAddTransaction,
-  onToggleAutoReport
+  onToggleAutoReport,
+  onSaveQuotation,
+  onUpdateQuotationStatus
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
+  const [selectedIncidentForReport, setSelectedIncidentForReport] = useState<IncidentReport | null>(null);
 
   // Resolution modal state
   const [resolvingIncId, setResolvingIncId] = useState<string | null>(null);
@@ -409,12 +421,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </p>
 
                   {inc.photoUrl && (
-                    <button
-                      onClick={() => setViewingIncident(inc)}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 mb-3 cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Ver foto de evidencia adjunta
-                    </button>
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => setViewingIncident(inc)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Ver foto de evidencia
+                      </button>
+                      <button
+                        onClick={() => setSelectedIncidentForReport(inc)}
+                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Ver / Imprimir Reporte Técnico PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> Reporte PDF
+                      </button>
+                    </div>
                   )}
 
                   {inc.status === 'resuelto' ? (
@@ -1166,6 +1187,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {/* 5. COTIZACIONES Y PRESUPUESTOS (NUEVO MÓDULO) */}
+      {activeTab === 'cotizaciones_admin' && (
+        <QuotationManager
+          quotations={quotations}
+          onSaveQuotation={onSaveQuotation}
+          onUpdateStatus={onUpdateQuotationStatus}
+        />
+      )}
+
       {/* Image Viewer Modals */}
       {viewingEvidence && (
         <ImageViewerModal
@@ -1178,6 +1208,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           incidentTitle={viewingIncident.title}
           incidentPhotoUrl={viewingIncident.photoUrl}
           onClose={() => setViewingIncident(null)}
+        />
+      )}
+
+      {/* Incident Printable Report PDF Modal */}
+      {selectedIncidentForReport && (
+        <IncidentReportModal
+          incident={selectedIncidentForReport}
+          onClose={() => setSelectedIncidentForReport(null)}
         />
       )}
     </div>

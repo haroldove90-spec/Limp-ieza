@@ -130,9 +130,65 @@ export interface TransactionRecord {
   id: string;
   date: string;
   type: 'ingreso' | 'gasto';
-  category: 'pago_servicio' | 'compra_insumos' | 'nomina' | 'mantenimiento' | 'otro';
+  category: 'poliza_mensual' | 'servicio_extra' | 'compra_insumos' | 'nomina' | 'mantenimiento' | 'otro';
   concept: string;
   clientOrVendor: string;
   amount: number;
   status: 'pagado' | 'pendiente';
+}
+
+export interface WarehouseMovement {
+  id: string;
+  date: string;
+  time: string;
+  supplyId: string;
+  supplyName: string;
+  type: 'entrada' | 'salida';
+  quantity: number;
+  unit: string;
+  operativeName: string;
+  reason: string;
+  serviceOrLocation?: string;
+}
+
+export interface QuotationItem {
+  id: string;
+  serviceType: string;
+  description: string;
+  unit: string; // m², Turno, Día, Mensual, Horas, Pza
+  unitCost: number;
+  quantity: number;
+  subtotal: number;
+}
+
+export interface Quotation {
+  id: string;
+  folio: string;
+  date: string;
+  validUntil: string;
+  // Company Data
+  companyName: string;
+  companyTaxId: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyAddress: string;
+  // Client Data
+  clientName: string;
+  clientContact: string;
+  clientTaxId?: string;
+  clientPhone: string;
+  clientEmail: string;
+  clientAddress: string;
+  // Details
+  items: QuotationItem[];
+  subtotal: number;
+  taxRate: number; // e.g. 0.16
+  taxAmount: number;
+  total: number;
+  // Service Conditions
+  serviceConditions: string;
+  paymentTerms: string;
+  deliveryTime: string;
+  notes?: string;
+  status: 'borrador' | 'enviada' | 'aceptada' | 'rechazada';
 }

@@ -3,7 +3,6 @@ import {
   Sparkles,
   Camera,
   Calendar,
-  CreditCard,
   Layers,
   FileSpreadsheet,
   CheckCircle2,
@@ -13,19 +12,15 @@ import {
   Plus,
   Send,
   ArrowRight,
-  Receipt,
   FileText,
-  DollarSign,
   ChevronRight,
-  TrendingDown,
   Printer
 } from 'lucide-react';
 import {
   CleaningService,
   IncidentReport,
   Cycle3DayReport,
-  SupplyRequest,
-  TransactionRecord
+  SupplyRequest
 } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 
@@ -35,7 +30,6 @@ interface ClientDashboardProps {
   incidents: IncidentReport[];
   cycleReports: Cycle3DayReport[];
   supplyRequests: SupplyRequest[];
-  finances: TransactionRecord[];
   clientName: string;
   onEmitSupplyRequest: (request: Omit<SupplyRequest, 'id' | 'requestDate' | 'status'>) => void;
 }
@@ -46,13 +40,11 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   incidents,
   cycleReports,
   supplyRequests,
-  finances,
   clientName,
   onEmitSupplyRequest
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<any | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
-  const [selectedReceipt, setSelectedReceipt] = useState<TransactionRecord | null>(null);
 
   // New Supply Request Form State
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -81,7 +73,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       cycleReportId: currentReport?.id,
       items: validItems,
       notes: orderNotes,
-      totalEstimatedCost: 2850
+      totalEstimatedCost: 0
     });
 
     setShowOrderModal(false);
@@ -113,250 +105,277 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 Evidencias de Trabajo y Calidad
               </h2>
               <p className="text-sm text-slate-400 font-medium mt-1">
-                Inspección fotográfica de zonas atendidas y registro de incidencias en sus instalaciones
+                Comprobación fotográfica del antes y después de cada servicio ejecutado en tus instalaciones
               </p>
             </div>
+
             <div className="flex items-center gap-2">
-              <span className="px-4 py-2 bg-blue-50 text-blue-700 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                Garantía de Servicio
+              <span className="text-xs md:text-sm font-semibold px-4 py-2 bg-blue-50 text-blue-700 rounded-2xl">
+                Sede: SkyTower Piso 8
               </span>
             </div>
           </div>
 
-          {/* Photo Gallery of Completed/In-Progress Areas */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-blue-600" />
-              <span>Galería Fotográfica Antes / Después</span>
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {clientServices.flatMap((service) =>
-                service.evidences.map((ev) => (
-                  <div
-                    key={ev.id}
-                    onClick={() => setViewingEvidence(ev)}
-                    className="bg-white rounded-3xl p-6 border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-                  >
+          {/* Evidence Grid by Service */}
+          <div className="space-y-6">
+            {clientServices.map((service) => (
+              <div
+                key={service.id}
+                className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                      <Camera className="w-5 h-5" />
+                    </div>
                     <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-xs font-medium text-slate-400">
-                          {service.date} • {ev.timestamp}
-                        </span>
-                        <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-                          Ver Comparativa
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 rounded-2xl overflow-hidden mb-4 bg-slate-900 aspect-16/9">
-                        <div className="relative group/img overflow-hidden">
-                          <img
-                            src={ev.beforePhotoUrl}
-                            alt="Antes"
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                          />
-                          <span className="absolute bottom-2 left-2 bg-slate-900/80 text-amber-300 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                            Antes
-                          </span>
-                        </div>
-                        <div className="relative group/img overflow-hidden">
-                          <img
-                            src={ev.afterPhotoUrl}
-                            alt="Después"
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                          />
-                          <span className="absolute bottom-2 left-2 bg-slate-900/80 text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                            Después
-                          </span>
-                        </div>
-                      </div>
-
-                      <h4 className="font-bold text-slate-800 text-base group-hover:text-blue-600 transition-colors">
-                        {ev.area}
-                      </h4>
-                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">
-                        {ev.notes || 'Limpieza profunda y desinfección completada con éxito.'}
+                      <h3 className="font-bold text-slate-800 text-base md:text-lg">
+                        Servicio: {service.date} ({service.timeSlot})
+                      </h3>
+                      <p className="text-xs text-slate-400 font-medium">
+                        Técnico Operativo: {service.operativeName}
                       </p>
                     </div>
-
-                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600">
-                      <span>Abrir visor completo</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </div>
                   </div>
-                ))
-              )}
-            </div>
+
+                  <span className="text-xs font-bold text-green-700 bg-green-50 px-3 py-1 rounded-full uppercase self-start sm:self-auto">
+                    {service.status === 'completado' ? 'Completado y Auditado' : 'En Ejecución'}
+                  </span>
+                </div>
+
+                {/* Photo Evidence Tiles */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+                  {service.evidences.map((ev) => (
+                    <div
+                      key={ev.id}
+                      onClick={() => setViewingEvidence(ev)}
+                      className="group p-3.5 rounded-2xl border border-slate-100 hover:border-blue-300 bg-slate-50/50 hover:bg-white transition-all cursor-pointer shadow-xs"
+                    >
+                      <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-900 mb-2.5">
+                        <img
+                          src={ev.afterPhotoUrl || ev.beforePhotoUrl}
+                          alt={ev.area}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <span className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                          {ev.timestamp}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-slate-800 text-sm">{ev.area}</h4>
+                        <span className="text-xs text-blue-600 font-semibold group-hover:underline">
+                          Comparativa →
+                        </span>
+                      </div>
+                      {ev.notes && (
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-1">
+                          {ev.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Incidents on Client Property */}
-          <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-orange-600" />
-              <span>Reportes de Incidencias en su Inmueble</span>
-            </h3>
+          {/* Incidents Section */}
+          {clientIncidents.length > 0 && (
+            <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-base md:text-lg">
+                    Notificaciones de Incidencias Operativas
+                  </h3>
+                </div>
+              </div>
 
-            {clientIncidents.length === 0 ? (
-              <p className="text-sm text-slate-400 font-medium">Sin incidencias registradas en sus instalaciones.</p>
-            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {clientIncidents.map((inc) => (
                   <div
                     key={inc.id}
                     onClick={() => setViewingIncident(inc)}
-                    className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-slate-200 transition-all cursor-pointer"
+                    className="p-4 rounded-2xl border border-orange-100 bg-orange-50/20 hover:bg-orange-50/40 transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-bold text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 bg-orange-100 px-2 py-0.5 rounded-full">
                         {inc.type.replace('_', ' ')}
                       </span>
-                      <span className="text-xs font-medium text-slate-400">
-                        {inc.date} • {inc.time}
-                      </span>
+                      <span className="text-xs text-slate-400">{inc.time}</span>
                     </div>
 
-                    <h4 className="font-bold text-slate-900 text-sm md:text-base">
-                      {inc.title}
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <h4 className="font-bold text-slate-900 text-sm">{inc.title}</h4>
+                    <p className="text-xs text-slate-600 mt-1 line-clamp-2">
                       {inc.description}
                     </p>
 
-                    {inc.adminResolution && (
-                      <div className="mt-3 p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-900 font-medium">
-                        <span className="font-bold block text-green-950 mb-0.5">
-                          Resolución / Acción Tomada:
-                        </span>
-                        {inc.adminResolution}
-                      </div>
-                    )}
+                    <div className="mt-3 pt-2 border-t border-orange-100 flex items-center justify-between text-xs">
+                      <span className="text-slate-400">{inc.location}</span>
+                      <span className="text-blue-600 font-semibold">Ver detalle con foto →</span>
+                    </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 2. CONTROL DE INSUMOS (CICLOS DE 3 DÍAS) */}
+      {/* 2. REPORTE CADA 3 DÍAS Y PEDIDO DE INSUMOS */}
       {activeTab === 'insumos_cliente' && (
         <div className="space-y-6">
-          {orderSuccessAlert && (
-            <div className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-2xl text-sm md:text-base font-semibold flex items-center gap-2 shadow-xs">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
-              ¡Requerimiento de insumos enviado con éxito al Administrador para despacho inmediato!
-            </div>
-          )}
-
-          {/* 3-Day Cycle Header Card */}
+          {/* Header Banner */}
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wider mb-2">
-                <Clock className="w-3.5 h-3.5" /> Ciclo Automático Cada 3 Días
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wider mb-2">
+                <Layers className="w-3.5 h-3.5" /> Monitoreo y Suministro
               </div>
               <h2 className="text-xl md:text-2xl font-bold text-slate-800">
-                Informe de Consumo y Balance de Stock
+                Consumo y Reabastecimiento de Insumos
               </h2>
-              <p className="text-xs md:text-sm text-slate-400 font-medium mt-1">
-                Periodo Actual: {currentReport.periodStart} al {currentReport.periodEnd} (Ciclo #{currentReport.cycleNumber})
+              <p className="text-sm text-slate-400 font-medium mt-1">
+                Informe de inventario en tus instalaciones con solicitud directa de reposición de insumos
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => window.print()}
-                className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs md:text-sm transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <Printer className="w-4 h-4" /> Imprimir / PDF
-              </button>
+            <div className="flex flex-wrap gap-2.5">
               <button
                 onClick={() => setShowOrderModal(true)}
-                className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs md:text-sm transition-all shadow-md shadow-blue-200 flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-md shadow-blue-200 transition-all"
               >
-                <Plus className="w-4 h-4" />
-                <span>Emitir Requerimiento</span>
+                <Plus className="w-4 h-4" /> Solicitar Suministro Faltante
               </button>
             </div>
           </div>
 
-          {/* 3-Day Cycle Table */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-slate-800 text-base md:text-lg">
-                  Balance Detallado de Insumos en Instalaciones
-                </h3>
-                <p className="text-xs text-slate-400 font-medium">
-                  Monitoreo de mermas, consumo del turno y recomendación de reabastecimiento
-                </p>
+          {orderSuccessAlert && (
+            <div className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-2xl text-sm font-semibold flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+              Tu requerimiento de insumos ha sido emitido con éxito a la central de CleanPro.
+            </div>
+          )}
+
+          {/* Current 3-Day Report Card */}
+          {currentReport && (
+            <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base md:text-lg">
+                    {currentReport.reportName}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Período auditado: {currentReport.period} • Supervisado por:{' '}
+                    <strong className="text-slate-700">{currentReport.supervisorName}</strong>
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full uppercase self-start sm:self-auto">
+                  Reporte Vigente
+                </span>
+              </div>
+
+              {/* Items Inventory Status (Quantities only, NO prices) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {currentReport.items.map((item) => {
+                  const percent = Math.round((item.currentRemaining / item.initialStock) * 100);
+                  const isCriticallyLow = percent < 30;
+
+                  return (
+                    <div
+                      key={item.supplyId}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        isCriticallyLow
+                          ? 'bg-orange-50/40 border-orange-200'
+                          : 'bg-slate-50/50 border-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {item.unit}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                            isCriticallyLow
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
+                          {isCriticallyLow ? 'Reposición Sugerida' : 'Nivel Adecuado'}
+                        </span>
+                      </div>
+
+                      <h4 className="font-bold text-slate-800 text-sm mb-1">{item.supplyName}</h4>
+
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-slate-400">Restante en Sitio:</span>
+                          <span className="text-slate-800 font-bold">
+                            {item.currentRemaining} / {item.initialStock} {item.unit}
+                          </span>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              isCriticallyLow ? 'bg-orange-500' : 'bg-blue-600'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          ></div>
+                        </div>
+
+                        <div className="flex justify-between text-[11px] text-slate-400 pt-1">
+                          <span>Consumido: {item.consumed3Days} {item.unit}</span>
+                          <span className="font-medium">{percent}% restante</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Recommended Reorder Summary (Quantities ONLY) */}
+              <div className="p-5 rounded-2xl bg-blue-50/50 border border-blue-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm md:text-base">
+                    Sugerencia Operativa de Reposición:
+                  </h4>
+                  <p className="text-xs text-slate-600 font-medium mt-0.5">
+                    {currentReport.items
+                      .filter((i) => i.suggestedReorder > 0)
+                      .map((i) => `${i.suggestedReorder} ${i.unit} de ${i.supplyName}`)
+                      .join(' • ')}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowOrderModal(true)}
+                  className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs md:text-sm flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-200 transition-all shrink-0"
+                >
+                  <Send className="w-4 h-4" /> Solicitar este Lote
+                </button>
               </div>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3.5 px-6">Insumo / Producto</th>
-                    <th className="py-3.5 px-4 text-center">Stock Inicial</th>
-                    <th className="py-3.5 px-4 text-center text-orange-600">Consumo (3 Días)</th>
-                    <th className="py-3.5 px-4 text-center text-green-600">Stock Restante</th>
-                    <th className="py-3.5 px-6 text-center">Sugerencia Pedido</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {currentReport.items.map((item, idx) => {
-                    const isLow = item.remainingStock <= (item.initialStock * 0.35);
-
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-4 px-6 font-semibold text-slate-900">
-                          {item.supplyName}
-                          <span className="block text-xs font-normal text-slate-400">{item.unit}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center font-bold text-slate-700">
-                          {item.initialStock}
-                        </td>
-                        <td className="py-4 px-4 text-center font-bold text-orange-600">
-                          -{item.consumed}
-                        </td>
-                        <td className="py-4 px-4 text-center font-bold">
-                          <span className={`px-3 py-1 rounded-full text-xs ${
-                            isLow ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                          }`}>
-                            {item.remainingStock}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-center">
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">
-                            +{item.recommendedOrder} {item.unit}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          )}
 
           {/* Supply Requests History */}
-          <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm">
-            <h3 className="font-bold text-slate-800 text-base md:text-lg mb-4">
-              Historial de Pedidos y Requerimientos
+          <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
+            <h3 className="font-bold text-slate-800 text-base md:text-lg">
+              Historial de Requerimientos de Insumos Emitidos
             </h3>
 
             <div className="space-y-3">
               {supplyRequests.map((req) => (
                 <div
                   key={req.id}
-                  className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                  className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-slate-900 text-sm md:text-base">
-                        Pedido #{req.id}
-                      </span>
+                      <span className="font-bold text-slate-900 text-sm">{req.id}</span>
                       <span className="text-xs text-slate-400">({req.requestDate})</span>
                       <span
                         className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
@@ -384,136 +403,12 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                   </div>
 
                   <div className="text-right shrink-0">
-                    <span className="text-xs font-medium text-slate-400 block">Total Estimado</span>
-                    <span className="text-base font-bold text-slate-900">
-                      ${req.totalEstimatedCost.toLocaleString('es-MX')} MXN
+                    <span className="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-xl">
+                      {req.items.reduce((sum, item) => sum + item.quantity, 0)} unidades solicitadas
                     </span>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. AGENDA Y PAGOS */}
-      {activeTab === 'agenda_pagos_cliente' && (
-        <div className="space-y-6">
-          {/* Upcoming visits and history */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Visits & Schedule (7 cols) */}
-            <div className="lg:col-span-7 bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <h3 className="font-bold text-slate-800 text-base md:text-lg">
-                    Calendario de Visitas Programadas
-                  </h3>
-                </div>
-                <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">
-                  Póliza Activa
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {clientServices.map((service) => (
-                  <div
-                    key={service.id}
-                    className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-slate-900 text-sm md:text-base">
-                          {service.date}
-                        </span>
-                        <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" /> {service.timeSlot}
-                        </span>
-                      </div>
-                      <p className="text-xs md:text-sm text-slate-500 font-medium">
-                        Personal asignado: <strong className="text-slate-800">{service.operativeName}</strong>
-                      </p>
-                    </div>
-
-                    <span
-                      className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase ${
-                        service.status === 'completado'
-                          ? 'bg-green-100 text-green-700'
-                          : service.status === 'en_proceso'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}
-                    >
-                      {service.status === 'completado' ? 'Concluido' : service.status === 'en_proceso' ? 'En Curso' : 'Programado'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Account statement & receipts (5 cols) */}
-            <div className="lg:col-span-5 bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                      <CreditCard className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-bold text-slate-800 text-base md:text-lg">
-                      Estado de Cuenta
-                    </h3>
-                  </div>
-                  <span className="text-xs font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">
-                    Al Corriente
-                  </span>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-slate-900 text-white mb-4">
-                  <span className="text-xs text-slate-400 font-medium block">Póliza Mensual Contratada:</span>
-                  <div className="text-3xl font-bold text-green-400 mt-1">
-                    $14,500.00 MXN
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1 font-medium">
-                    Próximo corte: 31 de Agosto, 2026
-                  </p>
-                </div>
-
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  Comprobantes y Recibos
-                </h4>
-
-                <div className="space-y-2">
-                  {finances
-                    .filter((f) => f.type === 'ingreso')
-                    .slice(0, 3)
-                    .map((tx) => (
-                      <div
-                        key={tx.id}
-                        onClick={() => setSelectedReceipt(tx)}
-                        className="p-3.5 rounded-2xl border border-slate-100 hover:border-blue-300 bg-slate-50/70 hover:bg-white transition-all cursor-pointer flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Receipt className="w-4 h-4 text-blue-600 shrink-0" />
-                          <div>
-                            <span className="text-xs md:text-sm font-semibold text-slate-900 block">
-                              {tx.concept}
-                            </span>
-                            <span className="text-[11px] text-slate-400 font-medium">{tx.date}</span>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="text-xs md:text-sm font-bold text-slate-900 block">
-                            ${tx.amount.toLocaleString('es-MX')}
-                          </span>
-                          <span className="text-[10px] text-green-600 font-bold uppercase">Pagado</span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -526,7 +421,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             <h3 className="text-xl font-bold text-slate-800 mb-1">
               Emitir Requerimiento de Insumos
             </h3>
-            <p className="text-xs md:text-sm text-slate-400 mb-5 font-medium">
+            <p className="text-xs text-slate-400 mb-5 font-medium">
               Ajusta las cantidades con base en el informe de 3 días para su despacho
             </p>
 
@@ -592,53 +487,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                   type="submit"
                   className="px-5 py-2.5 rounded-2xl bg-blue-600 text-white font-semibold text-xs md:text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 cursor-pointer shadow-md shadow-blue-200"
                 >
-                  <Send className="w-4 h-4" /> Confirmar Pedido
+                  <Send className="w-4 h-4" /> Confirmar Solicitud
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Receipt View */}
-      {selectedReceipt && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
-            <div className="text-center pb-4 border-b border-slate-100">
-              <div className="w-12 h-12 rounded-2xl bg-green-100 text-green-700 flex items-center justify-center mx-auto mb-3">
-                <Receipt className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold text-slate-800 text-lg">Comprobante de Pago</h3>
-              <p className="text-xs text-slate-400">Folio: {selectedReceipt.id} • {selectedReceipt.date}</p>
-            </div>
-
-            <div className="py-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Concepto:</span>
-                <span className="font-semibold text-slate-800 text-right">{selectedReceipt.concept}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Emisor:</span>
-                <span className="font-medium text-slate-700">CleanPro Servicios Integrales</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Receptor:</span>
-                <span className="font-medium text-slate-700">{selectedReceipt.clientOrVendor}</span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-slate-100 font-bold text-base">
-                <span>Monto Total:</span>
-                <span className="text-green-600">${selectedReceipt.amount.toLocaleString('es-MX')} MXN</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2 border-t border-slate-100">
-              <button
-                onClick={() => setSelectedReceipt(null)}
-                className="w-full py-2.5 rounded-2xl bg-slate-900 text-white font-semibold text-sm cursor-pointer"
-              >
-                Cerrar Comprobante
-              </button>
-            </div>
           </div>
         </div>
       )}

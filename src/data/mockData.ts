@@ -7,7 +7,9 @@ import {
   SupplyRequest,
   ClientProfile,
   EmployeeProfile,
-  TransactionRecord
+  TransactionRecord,
+  WarehouseMovement,
+  Quotation
 } from '../types';
 
 export const INITIAL_SERVICES: CleaningService[] = [
@@ -323,63 +325,156 @@ export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
 
 export const INITIAL_FINANCES: TransactionRecord[] = [
   {
-    id: 'TX-901',
-    date: '2026-08-22',
+    id: 'TX-101',
+    date: '2026-08-20',
     type: 'ingreso',
-    category: 'pago_servicio',
-    concept: 'Pago mensualidad póliza corporativa',
+    category: 'poliza_mensual',
+    concept: 'Pago mensualidad Póliza Oficinas SkyTower',
     clientOrVendor: 'Oficinas Corporativas SkyTower',
     amount: 14500,
     status: 'pagado'
   },
   {
-    id: 'TX-902',
+    id: 'TX-102',
+    date: '2026-08-18',
+    type: 'ingreso',
+    category: 'poliza_mensual',
+    concept: 'Pago mensualidad Clínica Dental Sonrisas',
+    clientOrVendor: 'Clínica Dental Sonrisas',
+    amount: 18200,
+    status: 'pagado'
+  },
+  {
+    id: 'TX-103',
     date: '2026-08-21',
     type: 'gasto',
     category: 'compra_insumos',
-    concept: 'Lote de químicos biodegradables y microfibras',
-    clientOrVendor: 'Química Industrial del Centro S.A.',
-    amount: 6320,
+    concept: 'Adquisición mayoreo Químicos y Desinfectantes',
+    clientOrVendor: 'Distribuidora Química del Valle',
+    amount: 6400,
     status: 'pagado'
   },
   {
-    id: 'TX-903',
-    date: '2026-08-20',
-    type: 'ingreso',
-    category: 'pago_servicio',
-    concept: 'Factura quincenal de sanitización',
-    clientOrVendor: 'Clínica Dental Sonrisas',
-    amount: 9100,
-    status: 'pagado'
-  },
-  {
-    id: 'TX-904',
-    date: '2026-08-18',
-    type: 'gasto',
-    category: 'nomina',
-    concept: 'Bono de productividad y transporte de campo',
-    clientOrVendor: 'Nómina Operativos (3 personas)',
-    amount: 4800,
-    status: 'pagado'
-  },
-  {
-    id: 'TX-905',
-    date: '2026-08-17',
-    type: 'ingreso',
-    category: 'pago_servicio',
-    concept: 'Requerimiento extraordinario de insumos',
-    clientOrVendor: 'Gimnasio FitZone Centro',
-    amount: 1140,
-    status: 'pagado'
-  },
-  {
-    id: 'TX-906',
+    id: 'TX-104',
     date: '2026-08-15',
     type: 'gasto',
-    category: 'mantenimiento',
-    concept: 'Servicio técnico preventivo de hidrolavadoras',
-    clientOrVendor: 'Maquinaria & Equipos Pro',
-    amount: 1750,
+    category: 'nomina',
+    concept: 'Pago nómina quincenal cuadrilla operativa (3 técnicos)',
+    clientOrVendor: 'Nómina Operativa',
+    amount: 19500,
     status: 'pagado'
+  }
+];
+
+export const INITIAL_WAREHOUSE_MOVEMENTS: WarehouseMovement[] = [
+  {
+    id: 'MOV-101',
+    date: '2026-08-23',
+    time: '07:45 AM',
+    supplyId: 'SUP-01',
+    supplyName: 'Desinfectante Multiusos Pino & Lavanda 5L',
+    type: 'salida',
+    quantity: 2,
+    unit: 'Garrafas',
+    operativeName: 'Carlos Mendoza',
+    reason: 'Servicio en Oficinas Corporativas SkyTower',
+    serviceOrLocation: 'SkyTower Piso 8'
+  },
+  {
+    id: 'MOV-102',
+    date: '2026-08-23',
+    time: '07:50 AM',
+    supplyId: 'SUP-07',
+    supplyName: 'Paños Microfibra Antimicrobiana',
+    type: 'salida',
+    quantity: 6,
+    unit: 'Piezas',
+    operativeName: 'Carlos Mendoza',
+    reason: 'Reposición kit van de servicio',
+    serviceOrLocation: 'Van #04'
+  },
+  {
+    id: 'MOV-103',
+    date: '2026-08-22',
+    time: '17:30 PM',
+    supplyId: 'SUP-02',
+    supplyName: 'Cloro Concentrado al 6% (5 Litros)',
+    type: 'entrada',
+    quantity: 10,
+    unit: 'Garrafas',
+    operativeName: 'Lucía Santos',
+    reason: 'Devolución de excedente de servicio masivo',
+    serviceOrLocation: 'Almacén Central'
+  },
+  {
+    id: 'MOV-104',
+    date: '2026-08-22',
+    time: '08:15 AM',
+    supplyId: 'SUP-06',
+    supplyName: 'Bolsas Basura Negras 90x120 cm (Calibre 600)',
+    type: 'salida',
+    quantity: 50,
+    unit: 'Unidades',
+    operativeName: 'Carlos Mendoza',
+    reason: 'Suministro en Clínica Dental Sonrisas',
+    serviceOrLocation: 'Clínica Sonrisas'
+  }
+];
+
+export const INITIAL_QUOTATIONS: Quotation[] = [
+  {
+    id: 'QUO-2026-001',
+    folio: 'COT-0824-01',
+    date: '2026-08-24',
+    validUntil: '2026-09-08',
+    companyName: 'CleanPro Servicios Integrales S.A. de C.V.',
+    companyTaxId: 'CSI190423-LK9',
+    companyPhone: '+52 (55) 8000-9200',
+    companyEmail: 'contacto@cleanproservicios.com',
+    companyAddress: 'Av. Insurgentes Sur #1450, Piso 5, Benito Juárez, CDMX',
+    clientName: 'Grupo Financiero Altavista S.A.',
+    clientContact: 'Lic. Rodrigo Elizondo (Gerente de Operaciones)',
+    clientTaxId: 'GFA150912-7X1',
+    clientPhone: '+52 (55) 4120-7799',
+    clientEmail: 'relizondo@altavista.com.mx',
+    clientAddress: 'Paseo de la Reforma #222, Piso 14, Cuauhtémoc, CDMX',
+    items: [
+      {
+        id: 'QI-1',
+        serviceType: 'Limpieza Corporativa Integral y Desinfección',
+        description: 'Servicio integral 5 días por semana (Lunes a Viernes). Incluye aspirado de alfombra, desinfección de sanitarios, limpieza de mamparas y cristales interiores.',
+        unit: 'Mensual',
+        unitCost: 18500,
+        quantity: 1,
+        subtotal: 18500
+      },
+      {
+        id: 'QI-2',
+        serviceType: 'Lavado y Desinfección Profunda de Alfombras',
+        description: 'Limpieza de alfombra de alto tráfico con inyección-succión y vapor a 120°C en salas de juntas y pasillos principales.',
+        unit: 'm²',
+        unitCost: 45,
+        quantity: 250,
+        subtotal: 11250
+      },
+      {
+        id: 'QI-3',
+        serviceType: 'Kit de Insumos y Dispensadores en Comodato',
+        description: 'Suministro continuo de jabón en espuma, toalla interdoblada kraft y aromatizantes temporizados para 4 módulos de baño.',
+        unit: 'Mes',
+        unitCost: 3200,
+        quantity: 1,
+        subtotal: 3200
+      }
+    ],
+    subtotal: 32950,
+    taxRate: 0.16,
+    taxAmount: 5272,
+    total: 38222,
+    serviceConditions: '• Los servicios se realizarán en horarios matutinos de 07:00 a 16:00 hrs.\n• Todo el personal cuenta con IMSS, EPP reglamentario y carta de no antecedentes penales.\n• Productos químicos 100% biodegradables con ficha técnica avalada por COFEPRIS.',
+    paymentTerms: '50% de anticipo al inicio de operaciones y 50% al cierre mensual / Crédito a 15 días tras emisión de factura.',
+    deliveryTime: 'Inicio de operaciones a partir de las 48 horas posteriores a la firma de contrato.',
+    notes: 'Precios en Moneda Nacional (MXN). Incluye supervisión quincenal y reportes fotográficos de evidencia.',
+    status: 'enviada'
   }
 ];

@@ -15,22 +15,31 @@ import {
   Sparkles,
   Info,
   Layers,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Printer,
+  Download
 } from 'lucide-react';
-import { CleaningService, IncidentReport, KitItem, PhotoEvidence } from '../../../types';
+import { CleaningService, IncidentReport, KitItem, PhotoEvidence, SupplyItem, WarehouseMovement } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
+import { IncidentReportModal } from '../../common/IncidentReportModal';
+import { WarehouseOperativeModule } from './WarehouseOperativeModule';
 
 interface OperativeDashboardProps {
   activeTab: string;
   services: CleaningService[];
   incidents: IncidentReport[];
   kitItems: KitItem[];
+  supplies: SupplyItem[];
+  movements: WarehouseMovement[];
+  operativeName?: string;
   onUpdateServiceStatus: (serviceId: string, status: CleaningService['status']) => void;
   onToggleTask: (serviceId: string, taskId: string) => void;
   onAddEvidence: (serviceId: string, evidence: Omit<PhotoEvidence, 'id' | 'timestamp'>) => void;
   onAddIncident: (incident: Omit<IncidentReport, 'id' | 'date' | 'time' | 'status'>) => void;
   onToggleKitCheckin: (kitId: string) => void;
   onReportShortage: (kitId: string, note: string) => void;
+  onAddWarehouseMovement: (movement: Omit<WarehouseMovement, 'id' | 'date' | 'time'>) => void;
 }
 
 export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
@@ -38,16 +47,21 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   services,
   incidents,
   kitItems,
+  supplies,
+  movements,
+  operativeName = 'Carlos Mendoza',
   onUpdateServiceStatus,
   onToggleTask,
   onAddEvidence,
   onAddIncident,
   onToggleKitCheckin,
-  onReportShortage
+  onReportShortage,
+  onAddWarehouseMovement
 }) => {
   const [selectedServiceId, setSelectedServiceId] = useState<string>(services[0]?.id || '');
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
+  const [selectedIncidentForReport, setSelectedIncidentForReport] = useState<IncidentReport | null>(null);
 
   // New Evidence Form State
   const [newArea, setNewArea] = useState('');
@@ -622,39 +636,54 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
 
           {/* Incidents List (5 cols) */}
           <div className="lg:col-span-5 bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm">
-            <h3 className="font-bold text-slate-800 text-base md:text-lg mb-4">
-              Incidencias Reportadas Hoy
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-slate-800 text-base md:text-lg">
+                Incidencias Registradas ({incidents.length})
+              </h3>
+              <span className="text-xs font-semibold px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                Formato PDF
+              </span>
+            </div>
 
             <div className="space-y-3">
               {incidents.map((inc) => (
                 <div
                   key={inc.id}
-                  onClick={() => setViewingIncident(inc)}
-                  className="p-4 rounded-2xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-white transition-all cursor-pointer"
+                  className="p-4 rounded-2xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-white transition-all space-y-3"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full">
                       {inc.type.replace('_', ' ')}
                     </span>
                     <span className="text-xs text-slate-400 font-medium">{inc.time}</span>
                   </div>
 
-                  <h4 className="font-bold text-slate-900 text-sm md:text-base">
-                    {inc.title}
-                  </h4>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm md:text-base">
+                      {inc.title}
+                    </h4>
+                    <p className="text-xs text-slate-500 line-clamp-2 mt-1">
+                      {inc.description}
+                    </p>
+                  </div>
 
-                  <p className="text-xs text-slate-500 line-clamp-2 mt-1">
-                    {inc.description}
-                  </p>
-
-                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
                     <span className="text-slate-400">{inc.location}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold ${
-                      inc.status === 'resuelto' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {inc.status === 'resuelto' ? 'Resuelto' : 'En Revisión'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setSelectedIncidentForReport(inc)}
+                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Ver / Exportar Reporte Técnico PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> PDF
+                      </button>
+                      <button
+                        onClick={() => setViewingIncident(inc)}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Foto
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -663,7 +692,17 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
         </div>
       )}
 
-      {/* 4. CONTROL DE INSUMOS (CAMPO) */}
+      {/* 4. ALMACÉN Y MOVIMIENTOS DE INSUMOS (NUEVO MÓDULO OPERATIVO) */}
+      {activeTab === 'almacen_operativo' && (
+        <WarehouseOperativeModule
+          supplies={supplies}
+          movements={movements}
+          operativeName={operativeName}
+          onAddMovement={onAddWarehouseMovement}
+        />
+      )}
+
+      {/* 5. CONTROL DE KIT EN CAMPO */}
       {activeTab === 'insumos_campo' && (
         <div className="space-y-6">
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -798,6 +837,14 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
           incidentTitle={viewingIncident.title}
           incidentPhotoUrl={viewingIncident.photoUrl}
           onClose={() => setViewingIncident(null)}
+        />
+      )}
+
+      {/* Incident Official Printable PDF Modal */}
+      {selectedIncidentForReport && (
+        <IncidentReportModal
+          incident={selectedIncidentForReport}
+          onClose={() => setSelectedIncidentForReport(null)}
         />
       )}
     </div>

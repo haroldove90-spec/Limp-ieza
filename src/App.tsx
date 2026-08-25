@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { UserRole, CleaningService, IncidentReport, KitItem, SupplyItem, Cycle3DayReport, SupplyRequest, ClientProfile, EmployeeProfile, TransactionRecord, PhotoEvidence } from './types';
+import {
+  UserRole,
+  CleaningService,
+  IncidentReport,
+  KitItem,
+  SupplyItem,
+  Cycle3DayReport,
+  SupplyRequest,
+  ClientProfile,
+  EmployeeProfile,
+  TransactionRecord,
+  PhotoEvidence,
+  WarehouseMovement,
+  Quotation
+} from './types';
 import {
   INITIAL_SERVICES,
   INITIAL_INCIDENTS,
@@ -9,7 +23,9 @@ import {
   INITIAL_SUPPLY_REQUESTS,
   INITIAL_CLIENTS,
   INITIAL_EMPLOYEES,
-  INITIAL_FINANCES
+  INITIAL_FINANCES,
+  INITIAL_WAREHOUSE_MOVEMENTS,
+  INITIAL_QUOTATIONS
 } from './data/mockData';
 
 import { RoleSelectorHome } from './components/common/RoleSelectorHome';
@@ -27,10 +43,11 @@ import {
   AlertTriangle,
   Package,
   Layers,
-  CreditCard,
   ShieldCheck,
   Users,
-  DollarSign
+  DollarSign,
+  FileText,
+  Boxes
 } from 'lucide-react';
 
 export default function App() {
@@ -43,11 +60,13 @@ export default function App() {
   const [incidents, setIncidents] = useState<IncidentReport[]>(INITIAL_INCIDENTS);
   const [kitItems, setKitItems] = useState<KitItem[]>(INITIAL_KIT);
   const [supplies, setSupplies] = useState<SupplyItem[]>(INITIAL_SUPPLIES_INVENTORY);
+  const [warehouseMovements, setWarehouseMovements] = useState<WarehouseMovement[]>(INITIAL_WAREHOUSE_MOVEMENTS);
   const [cycleReports, setCycleReports] = useState<Cycle3DayReport[]>(INITIAL_3DAY_REPORTS);
   const [supplyRequests, setSupplyRequests] = useState<SupplyRequest[]>(INITIAL_SUPPLY_REQUESTS);
   const [clients, setClients] = useState<ClientProfile[]>(INITIAL_CLIENTS);
   const [employees, setEmployees] = useState<EmployeeProfile[]>(INITIAL_EMPLOYEES);
   const [finances, setFinances] = useState<TransactionRecord[]>(INITIAL_FINANCES);
+  const [quotations, setQuotations] = useState<Quotation[]>(INITIAL_QUOTATIONS);
 
   // Role switching
   const handleSelectRole = (role: UserRole) => {
@@ -128,6 +147,29 @@ export default function App() {
     setKitItems((prev) =>
       prev.map((k) => (k.id === kitId ? { ...k, status: 'escaso', notes: note } : k))
     );
+  };
+
+  const handleAddWarehouseMovement = (
+    movement: Omit<WarehouseMovement, 'id' | 'date' | 'time'>
+  ) => {
+    const now = new Date();
+    const newMov: WarehouseMovement = {
+      ...movement,
+      id: `MOV-${Date.now().toString().slice(-4)}`,
+      date: now.toISOString().split('T')[0],
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    // Update stock in supplies
+    setSupplies((prev) =>
+      prev.map((s) => {
+        if (s.id !== movement.supplyId) return s;
+        const delta = movement.type === 'entrada' ? movement.quantity : -movement.quantity;
+        return { ...s, currentStock: Math.max(0, s.currentStock + delta) };
+      })
+    );
+
+    setWarehouseMovements((prev) => [newMov, ...prev]);
   };
 
   // Client Handlers
@@ -231,6 +273,22 @@ export default function App() {
     );
   };
 
+  const handleSaveQuotation = (quotation: Quotation) => {
+    setQuotations((prev) => {
+      const exists = prev.find((q) => q.id === quotation.id);
+      if (exists) {
+        return prev.map((q) => (q.id === quotation.id ? quotation : q));
+      }
+      return [quotation, ...prev];
+    });
+  };
+
+  const handleUpdateQuotationStatus = (quotationId: string, status: Quotation['status']) => {
+    setQuotations((prev) =>
+      prev.map((q) => (q.id === quotationId ? { ...q, status } : q))
+    );
+  };
+
   // Define Navigation Items based on Current Active Role
   const getNavItems = (): NavItem[] => {
     switch (currentRole) {
@@ -239,17 +297,18 @@ export default function App() {
           { id: 'agenda', name: 'Agenda', icon: Calendar },
           { id: 'evidencias', name: 'Evidencias', icon: Camera },
           { id: 'incidencias', name: 'Incidencias', icon: AlertTriangle, badgeCount: incidents.filter((i) => i.status !== 'resuelto').length },
-          { id: 'insumos_campo', name: 'Insumos', icon: Package, badgeCount: kitItems.filter((k) => k.status === 'escaso').length }
+          { id: 'almacen_operativo', name: 'Almacén & Stock', icon: Boxes },
+          { id: 'insumos_campo', name: 'Kit Diario', icon: Package, badgeCount: kitItems.filter((k) => k.status === 'escaso').length }
         ];
       case 'client':
         return [
           { id: 'evidencias_cliente', name: 'Evidencias', icon: Camera },
-          { id: 'insumos_cliente', name: 'Reporte 3 Días', icon: Layers },
-          { id: 'agenda_pagos_cliente', name: 'Agenda y Pagos', icon: CreditCard }
+          { id: 'insumos_cliente', name: 'Reporte 3 Días', icon: Layers }
         ];
       case 'admin':
         return [
           { id: 'supervision_admin', name: 'Supervisión', icon: ShieldCheck, badgeCount: services.filter((s) => !s.approvedByAdmin).length },
+          { id: 'cotizaciones_admin', name: 'Cotizaciones', icon: FileText, badgeCount: quotations.filter((q) => q.status === 'borrador').length },
           { id: 'insumos_admin', name: 'Insumos e Inv.', icon: Package, badgeCount: supplyRequests.filter((r) => r.status === 'pendiente').length },
           { id: 'operacion_admin', name: 'Operación', icon: Users },
           { id: 'finanzas_admin', name: 'Finanzas', icon: DollarSign }
@@ -298,12 +357,16 @@ export default function App() {
               services={services}
               incidents={incidents}
               kitItems={kitItems}
+              supplies={supplies}
+              movements={warehouseMovements}
+              operativeName="Carlos Mendoza"
               onUpdateServiceStatus={handleUpdateServiceStatus}
               onToggleTask={handleToggleTask}
               onAddEvidence={handleAddEvidence}
               onAddIncident={handleAddIncident}
               onToggleKitCheckin={handleToggleKitCheckin}
               onReportShortage={handleReportShortage}
+              onAddWarehouseMovement={handleAddWarehouseMovement}
             />
           )}
 
@@ -314,7 +377,6 @@ export default function App() {
               incidents={incidents}
               cycleReports={cycleReports}
               supplyRequests={supplyRequests}
-              finances={finances}
               clientName="Oficinas Corporativas SkyTower"
               onEmitSupplyRequest={handleEmitSupplyRequest}
             />
@@ -331,6 +393,7 @@ export default function App() {
               clients={clients}
               employees={employees}
               finances={finances}
+              quotations={quotations}
               onApproveService={handleApproveService}
               onResolveIncident={handleResolveIncident}
               onUpdateSupplyStock={handleUpdateSupplyStock}
@@ -340,6 +403,8 @@ export default function App() {
               onAddService={handleAddService}
               onAddTransaction={handleAddTransaction}
               onToggleAutoReport={handleToggleAutoReport}
+              onSaveQuotation={handleSaveQuotation}
+              onUpdateQuotationStatus={handleUpdateQuotationStatus}
             />
           )}
         </main>
