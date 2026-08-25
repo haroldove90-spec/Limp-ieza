@@ -491,7 +491,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 2. GESTIÓN DE INSUMOS E INVENTARIOS */}
+      {/* 2. COTIZACIONES Y PROPUESTAS COMERCIALES */}
+      {activeTab === 'cotizaciones_admin' && (
+        <QuotationManager
+          quotations={quotations}
+          onSaveQuotation={onSaveQuotation}
+          onUpdateStatus={onUpdateQuotationStatus}
+        />
+      )}
+
+      {/* 3. GESTIÓN DE INSUMOS E INVENTARIOS */}
       {activeTab === 'insumos_admin' && (
         <div className="space-y-6">
           {/* Client Supply Requests Approvals */}
