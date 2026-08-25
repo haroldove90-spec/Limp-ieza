@@ -40,6 +40,9 @@ interface OperativeDashboardProps {
   onToggleKitCheckin: (kitId: string) => void;
   onReportShortage: (kitId: string, note: string) => void;
   onAddWarehouseMovement: (movement: Omit<WarehouseMovement, 'id' | 'date' | 'time'>) => void;
+  onEditWarehouseMovement: (movement: WarehouseMovement) => void;
+  onDeleteWarehouseMovement: (movementId: string) => void;
+  onAdjustSupplyStock: (supplyId: string, newStock: number) => void;
 }
 
 export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
@@ -56,7 +59,10 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   onAddIncident,
   onToggleKitCheckin,
   onReportShortage,
-  onAddWarehouseMovement
+  onAddWarehouseMovement,
+  onEditWarehouseMovement,
+  onDeleteWarehouseMovement,
+  onAdjustSupplyStock
 }) => {
   const [selectedServiceId, setSelectedServiceId] = useState<string>(services[0]?.id || '');
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
@@ -699,6 +705,9 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
           movements={movements}
           operativeName={operativeName}
           onAddMovement={onAddWarehouseMovement}
+          onEditMovement={onEditWarehouseMovement}
+          onDeleteMovement={onDeleteWarehouseMovement}
+          onAdjustStock={onAdjustSupplyStock}
         />
       )}
 

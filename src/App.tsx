@@ -172,6 +172,53 @@ export default function App() {
     setWarehouseMovements((prev) => [newMov, ...prev]);
   };
 
+  const handleEditWarehouseMovement = (updatedMovement: WarehouseMovement) => {
+    const oldMovement = warehouseMovements.find((m) => m.id === updatedMovement.id);
+    if (oldMovement) {
+      setSupplies((prev) =>
+        prev.map((s) => {
+          let currentStock = s.currentStock;
+          // Revert old effect
+          if (s.id === oldMovement.supplyId) {
+            const revertDelta = oldMovement.type === 'entrada' ? -oldMovement.quantity : oldMovement.quantity;
+            currentStock = Math.max(0, currentStock + revertDelta);
+          }
+          // Apply new effect
+          if (s.id === updatedMovement.supplyId) {
+            const applyDelta = updatedMovement.type === 'entrada' ? updatedMovement.quantity : -updatedMovement.quantity;
+            currentStock = Math.max(0, currentStock + applyDelta);
+          }
+          return { ...s, currentStock };
+        })
+      );
+    }
+
+    setWarehouseMovements((prev) =>
+      prev.map((m) => (m.id === updatedMovement.id ? updatedMovement : m))
+    );
+  };
+
+  const handleDeleteWarehouseMovement = (movementId: string) => {
+    const oldMovement = warehouseMovements.find((m) => m.id === movementId);
+    if (oldMovement) {
+      // Revert stock effect
+      setSupplies((prev) =>
+        prev.map((s) => {
+          if (s.id !== oldMovement.supplyId) return s;
+          const revertDelta = oldMovement.type === 'entrada' ? -oldMovement.quantity : oldMovement.quantity;
+          return { ...s, currentStock: Math.max(0, s.currentStock + revertDelta) };
+        })
+      );
+    }
+    setWarehouseMovements((prev) => prev.filter((m) => m.id !== movementId));
+  };
+
+  const handleAdjustSupplyStock = (supplyId: string, newStock: number) => {
+    setSupplies((prev) =>
+      prev.map((s) => (s.id === supplyId ? { ...s, currentStock: Math.max(0, newStock) } : s))
+    );
+  };
+
   // Client Handlers
   const handleEmitSupplyRequest = (
     request: Omit<SupplyRequest, 'id' | 'requestDate' | 'status'>
@@ -367,6 +414,9 @@ export default function App() {
               onToggleKitCheckin={handleToggleKitCheckin}
               onReportShortage={handleReportShortage}
               onAddWarehouseMovement={handleAddWarehouseMovement}
+              onEditWarehouseMovement={handleEditWarehouseMovement}
+              onDeleteWarehouseMovement={handleDeleteWarehouseMovement}
+              onAdjustSupplyStock={handleAdjustSupplyStock}
             />
           )}
 

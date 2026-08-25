@@ -17,38 +17,118 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
     window.print();
   };
 
-  const handleDownloadText = () => {
-    const textContent = `=====================================================
-CLEANPRO - REPORTE TÉCNICO OFICIAL DE INCIDENCIA
-Folio: ${incident.id}
-Fecha de Emisión: ${incident.date} ${incident.time}
-=====================================================
+  const handleDownloadReport = () => {
+    const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte Técnico de Incidencia - ${incident.id}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; color: #1e293b; line-height: 1.5; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 24px; }
+    .logo { font-size: 24px; font-weight: 800; color: #2563eb; }
+    .folio-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 12px; text-align: right; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; background: #ffedd5; color: #9a3412; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0; }
+    .meta-item label { display: block; font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+    .meta-item strong { font-size: 14px; color: #0f172a; }
+    .section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-top: 24px; margin-bottom: 8px; }
+    .content-box { border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; background: #ffffff; }
+    .photo-box { margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; text-align: center; max-height: 350px; background: #0f172a; }
+    .photo-box img { max-height: 350px; max-width: 100%; object-fit: contain; }
+    .resolution-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 16px; border-radius: 12px; margin-top: 20px; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 48px; padding-top: 24px; border-top: 1px solid #e2e8f0; text-align: center; }
+    .sig-line { border-bottom: 1px solid #94a3b8; padding-bottom: 4px; font-weight: 600; margin-bottom: 4px; }
+    .sig-label { font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">CleanPro Servicios Integrales</div>
+      <div style="font-size: 13px; color: #64748b;">Reporte Técnico Oficial de Incidencias Operativas</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">RFC: CSI190423-LK9 • Insurgentes Sur #1450, Benito Juárez, CDMX</div>
+    </div>
+    <div class="folio-box">
+      <div style="font-size: 10px; color: #64748b; font-weight: 700;">FOLIO DE ACTA</div>
+      <div style="font-size: 18px; font-weight: 800; font-family: monospace;">${incident.id}</div>
+      <div style="font-size: 12px; color: #64748b; margin-top: 4px;">${incident.date} • ${incident.time} hrs</div>
+    </div>
+  </div>
 
-DATOS DEL CLIENTE Y SERVICIO:
-- Cliente: ${incident.clientName}
-- Servicio / Folio: ${incident.serviceId}
-- Ubicación Exacta: ${incident.location}
-- Técnico Operativo: ${incident.operativeName}
+  <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <span class="badge">${incident.type.toUpperCase().replace('_', ' ')}</span>
+      <h2 style="margin: 8px 0 0 0; font-size: 18px; color: #0f172a;">${incident.title}</h2>
+    </div>
+    <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; color: ${incident.status === 'resuelto' ? '#166534' : '#9a3412'};">
+      ${incident.status === 'resuelto' ? 'Resuelto / Validado' : 'En Revisión'}
+    </div>
+  </div>
 
-DETALLES DE LA INCIDENCIA:
-- Tipo: ${incident.type.toUpperCase().replace('_', ' ')}
-- Título: ${incident.title}
-- Descripción: ${incident.description}
-- Estatus: ${incident.status.toUpperCase()}
+  <div class="meta-grid">
+    <div class="meta-item">
+      <label>Cliente / Instalación</label>
+      <strong>${incident.clientName}</strong>
+      <div style="font-size: 11px; color: #64748b; font-family: monospace;">Servicio ID: ${incident.serviceId}</div>
+    </div>
+    <div class="meta-item">
+      <label>Ubicación Exacta en Sitio</label>
+      <strong>${incident.location}</strong>
+    </div>
+    <div class="meta-item">
+      <label>Hora y Fecha de Detección</label>
+      <strong>${incident.time} hrs (${incident.date})</strong>
+    </div>
+    <div class="meta-item">
+      <label>Técnico Operativo Responsable</label>
+      <strong>${incident.operativeName}</strong>
+    </div>
+  </div>
 
-RESOLUCIÓN / DICTAMEN DE ADMINISTRACIÓN:
-${incident.adminResolution || 'En proceso de dictamen y seguimiento.'}
+  <div class="section-title">Descripción y Circunstancias del Hecho</div>
+  <div class="content-box">
+    ${incident.description}
+  </div>
 
-Evidencia Fotográfica: ${incident.photoUrl || 'No adjunta'}
-=====================================================
-CleanPro Servicios Integrales S.A. de C.V.
-`;
+  ${incident.photoUrl ? `
+  <div class="section-title">Evidencia Fotográfica Adjunta</div>
+  <div class="photo-box">
+    <img src="${incident.photoUrl}" alt="${incident.title}" />
+  </div>
+  ` : ''}
 
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+  ${incident.adminResolution ? `
+  <div class="resolution-box">
+    <strong style="display: block; font-size: 12px; text-transform: uppercase; margin-bottom: 4px;">Dictamen de Administración / Acción Tomada:</strong>
+    <div>${incident.adminResolution}</div>
+  </div>
+  ` : ''}
+
+  <div class="signatures">
+    <div>
+      <div class="sig-line">${incident.operativeName}</div>
+      <div class="sig-label">Firma Técnico en Campo</div>
+    </div>
+    <div>
+      <div class="sig-line">Dirección de Operaciones / Cliente</div>
+      <div class="sig-label">Firma de Conformidad y Validación</div>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      // Automatic print trigger if desired
+    };
+  </script>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Reporte_Incidencia_${incident.id}.txt`;
+    link.download = `Reporte_Incidencia_${incident.id}.html`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -75,14 +155,14 @@ CleanPro Servicios Integrales S.A. de C.V.
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-md shadow-blue-200 transition-colors"
             >
               <Printer className="w-4 h-4" />
-              <span>Imprimir / Guardar PDF</span>
+              <span>Imprimir / PDF</span>
             </button>
             <button
-              onClick={handleDownloadText}
-              className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+              onClick={handleDownloadReport}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <Download className="w-4 h-4" />
-              <span>TXT</span>
+              <span>Descargar HTML / PDF</span>
             </button>
             <button
               onClick={onClose}
