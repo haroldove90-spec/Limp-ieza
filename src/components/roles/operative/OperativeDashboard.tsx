@@ -18,12 +18,14 @@ import {
   ArrowRight,
   FileText,
   Printer,
-  Download
+  Download,
+  Mail
 } from 'lucide-react';
 import { CleaningService, IncidentReport, KitItem, PhotoEvidence, SupplyItem, WarehouseMovement } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { WarehouseOperativeModule } from './WarehouseOperativeModule';
+import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 
 interface OperativeDashboardProps {
   activeTab: string;
@@ -68,6 +70,7 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
   const [selectedIncidentForReport, setSelectedIncidentForReport] = useState<IncidentReport | null>(null);
+  const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
 
   // New Evidence Form State
   const [newArea, setNewArea] = useState('');
@@ -87,6 +90,29 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   // Shortage modal state
   const [reportingShortageKitId, setReportingShortageKitId] = useState<string | null>(null);
   const [shortageNote, setShortageNote] = useState('');
+
+  const handleSendIncidentEmail = (inc: IncidentReport) => {
+    const subject = `[INCIDENCIA OPERATIVA] Folio ${inc.id} - ${inc.title} (${inc.clientName})`;
+    const body = `Estimada Administración / Cliente,\n\nSe reporta la siguiente incidencia técnica en campo:\n\n` +
+      `• Folio: ${inc.id}\n` +
+      `• Sede / Cliente: ${inc.clientName} (Servicio: ${inc.serviceId})\n` +
+      `• Ubicación Exacta: ${inc.location}\n` +
+      `• Tipo: ${inc.type.replace('_', ' ').toUpperCase()}\n` +
+      `• Título: ${inc.title}\n` +
+      `• Fecha / Hora: ${inc.date} a las ${inc.time} hrs\n` +
+      `• Técnico en Sitio: ${inc.operativeName}\n\n` +
+      `DESCRIPCIÓN:\n${inc.description}\n\n` +
+      `Atentamente,\nEquipo Operativo CleanPro Servicios Integrales`;
+
+    setEmailModalData({
+      title: 'Enviar Notificación de Incidencia por Correo',
+      defaultRecipient: 'supervision@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Incidencia Operativa',
+      attachmentName: `Incidencia_${inc.id}.pdf`
+    });
+  };
 
   const currentService = services.find((s) => s.id === selectedServiceId) || services[0];
 
@@ -677,6 +703,13 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                     <span className="text-slate-400">{inc.location}</span>
                     <div className="flex items-center gap-1.5">
                       <button
+                        onClick={() => handleSendIncidentEmail(inc)}
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Enviar Notificación por Correo"
+                      >
+                        <Mail className="w-3.5 h-3.5" /> Correo
+                      </button>
+                      <button
                         onClick={() => setSelectedIncidentForReport(inc)}
                         className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                         title="Ver / Exportar Reporte Técnico PDF"
@@ -856,6 +889,13 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
           onClose={() => setSelectedIncidentForReport(null)}
         />
       )}
+
+      {/* Email Dispatch Modal */}
+      <EmailSenderModal
+        data={emailModalData}
+        isOpen={!!emailModalData}
+        onClose={() => setEmailModalData(null)}
+      />
     </div>
   );
 };

@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Eye,
   FileText,
-  Printer
+  Printer,
+  Mail,
+  Download
 } from 'lucide-react';
 import {
   CleaningService,
@@ -43,6 +45,7 @@ import {
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { QuotationManager } from './QuotationManager';
+import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 
 interface AdminDashboardProps {
   activeTab: string;
@@ -139,6 +142,257 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const netBalance = totalIncome - totalExpense;
+
+  const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
+
+  // Email & Export Handlers for Admin Supervision
+  const handleSendSupervisionEmail = () => {
+    const completed = services.filter((s) => s.status === 'completado').length;
+    const pendingApproval = services.filter((s) => !s.approvedByAdmin).length;
+    const activeIncidents = incidents.filter((i) => i.status !== 'resuelto').length;
+
+    const subject = `[INFORME GERENCIAL] Balance de Servicios y Calidad - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
+    const body = `Estimada Dirección / Supervisión General,\n\n` +
+      `A continuación se presenta el resumen ejecutivo de operaciones y control de calidad:\n\n` +
+      `MÉTRICAS CLAVE DEL DÍA:\n` +
+      `• Servicios Totales Programados: ${services.length}\n` +
+      `• Servicios Ejecutados con Éxito: ${completed}\n` +
+      `• Auditorías Pendientes de Aprobación: ${pendingApproval}\n` +
+      `• Incidencias Técnicas Activas: ${activeIncidents}\n\n` +
+      `DETALLE DE SERVICIOS EN CURSO:\n` +
+      services.map((s, idx) => ` ${idx + 1}. [${s.status.toUpperCase()}] ${s.clientName} - Personal: ${s.operativeName} (${s.timeSlot})\n    Tareas: ${s.tasks.filter(t => t.completed).length}/${s.tasks.length} | Evidencias: ${s.evidences.length}`).join('\n') +
+      `\n\nINCIDENCIAS REPORTADAS:\n` +
+      (incidents.length > 0
+        ? incidents.map((i, idx) => ` ${idx + 1}. [${i.status.toUpperCase()}] ${i.title} - ${i.clientName} (${i.location})`).join('\n')
+        : 'Sin incidencias técnicas registradas.') +
+      `\n\nQuedamos atentos a cualquier instrucción.\n\n` +
+      `Atentamente,\nDirección de Operaciones\nCleanPro Servicios Integrales S.A. de C.V.`;
+
+    setEmailModalData({
+      title: 'Enviar Informe Gerencial de Supervisión por Correo',
+      defaultRecipient: 'direccion@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Informe Gerencial de Supervisión',
+      attachmentName: `Informe_Supervision_${new Date().toISOString().split('T')[0]}.html`
+    });
+  };
+
+  const handleDownloadSupervisionHTML = () => {
+    const completed = services.filter((s) => s.status === 'completado').length;
+    const pendingApproval = services.filter((s) => !s.approvedByAdmin).length;
+    const activeIncidents = incidents.filter((i) => i.status !== 'resuelto').length;
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Informe Gerencial de Calidad y Supervisión - CleanPro</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; color: #1e293b; background: #fff; }
+    .header { display: flex; justify-content: space-between; border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
+    .badge { background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; }
+    .kpi-val { font-size: 24px; font-weight: bold; color: #0f172a; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+    th { background: #f1f5f9; font-weight: bold; color: #475569; }
+    .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1 style="margin:0; font-size: 22px; color: #0f172a;">CleanPro Servicios Integrales S.A. de C.V.</h1>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">Informe Gerencial de Supervisión, Calidad y Operaciones</p>
+    </div>
+    <div style="text-align: right;">
+      <span class="badge">AUDITORÍA CENTRAL</span>
+      <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">Fecha: ${new Date().toLocaleDateString('es-MX')}</p>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div style="font-size: 11px; color: #64748b;">Servicios Programados</div>
+      <div class="kpi-val">${services.length}</div>
+    </div>
+    <div class="kpi-card">
+      <div style="font-size: 11px; color: #64748b;">Completados</div>
+      <div class="kpi-val" style="color: #16a34a;">${completed}</div>
+    </div>
+    <div class="kpi-card">
+      <div style="font-size: 11px; color: #64748b;">Pendientes Auditoría</div>
+      <div class="kpi-val" style="color: #ea580c;">${pendingApproval}</div>
+    </div>
+    <div class="kpi-card">
+      <div style="font-size: 11px; color: #64748b;">Incidencias Activas</div>
+      <div class="kpi-val" style="color: #dc2626;">${activeIncidents}</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 24px; color: #0f172a;">Bitácora de Servicios Auditados</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Cliente / Sede</th>
+        <th>Personal Técnico</th>
+        <th>Horario</th>
+        <th>Estado Calidad</th>
+        <th>Tareas Realizadas</th>
+        <th>Evidencias</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${services.map(s => `
+        <tr>
+          <td><strong>${s.clientName}</strong></td>
+          <td>${s.operativeName}</td>
+          <td>${s.timeSlot}</td>
+          <td><span style="font-weight:bold; color:${s.approvedByAdmin ? '#16a34a' : '#ca8a04'};">${s.approvedByAdmin ? 'Aprobado' : 'Pendiente'}</span></td>
+          <td>${s.tasks.filter(t => t.completed).length} de ${s.tasks.length}</td>
+          <td>${s.evidences.length} fotos adjuntas</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    CleanPro Servicios Integrales S.A. de C.V. • Sistema de Gestión de Operaciones y Calidad
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Reporte_Supervision_CleanPro_${new Date().toISOString().split('T')[0]}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSendIncidentEmail = (inc: IncidentReport) => {
+    const subject = `[ALERTA INCIDENCIA] ${inc.title} - ${inc.clientName}`;
+    const body = `Estimado Equipo Directivo / Cliente,\n\n` +
+      `Se comparte el informe técnico de la incidencia registrada en instalaciones:\n\n` +
+      `• Folio: #${inc.id}\n` +
+      `• Tipo: ${inc.type.replace('_', ' ').toUpperCase()}\n` +
+      `• Cliente / Sede: ${inc.clientName} (${inc.location})\n` +
+      `• Fecha y Hora: ${inc.date} - ${inc.time}\n` +
+      `• Técnico que Reporta: ${inc.operativeName}\n` +
+      `• Estado Actual: ${inc.status.toUpperCase()}\n\n` +
+      `DESCRIPCIÓN DEL SUCESO:\n${inc.description}\n\n` +
+      (inc.adminResolution ? `RESOLUCIÓN / SOLUCIÓN ACORDADA:\n${inc.adminResolution}\n\n` : '') +
+      `Para mayor detalle y evidencia fotográfica consulte el portal oficial o el reporte PDF adjunto.\n\n` +
+      `Atentamente,\nSupervisión y Control de Calidad\nCleanPro Servicios Integrales`;
+
+    setEmailModalData({
+      title: 'Enviar Incidencia por Correo',
+      defaultRecipient: 'operaciones@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Incidencia Operativa',
+      attachmentName: `Incidencia_${inc.id}.pdf`
+    });
+  };
+
+  // Warehouse Email & Export Handlers
+  const handleSendWarehouseEmail = () => {
+    const lowStockCount = supplies.filter(s => s.currentStock <= s.minimumStock).length;
+    const totalInventoryValue = supplies.reduce((acc, s) => acc + (s.currentStock * s.costPerUnit), 0);
+
+    const subject = `[REPORTE ALMACÉN] Estado de Stock e Insumos Centrales - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
+    const body = `Estimada Administración / Compras,\n\n` +
+      `A continuación se detalla el balance de existencias e insumos del Almacén Central:\n\n` +
+      `RESUMEN DE ALMACÉN:\n` +
+      `• Insumos Catalogados: ${supplies.length}\n` +
+      `• Insumos en Alerta (Bajo Stock): ${lowStockCount}\n` +
+      `• Valorización de Inventario: $${totalInventoryValue.toLocaleString('es-MX')} MXN\n` +
+      `• Requerimientos Pendientes de Despacho: ${supplyRequests.filter(r => r.status === 'pendiente').length}\n\n` +
+      `DETALLE DE EXISTENCIAS:\n` +
+      supplies.map((s, idx) => ` ${idx + 1}. ${s.name} (${s.category}) | Stock: ${s.currentStock} ${s.unit} (Mín: ${s.minimumStock}) | Costo: $${s.costPerUnit} MXN ${s.currentStock <= s.minimumStock ? '⚠️ [REPOSICIÓN URGENTE]' : '✅'}`).join('\n') +
+      `\n\nAtentamente,\nControl de Almacén y Suministros\nCleanPro Servicios Integrales`;
+
+    setEmailModalData({
+      title: 'Enviar Balance de Almacén por Correo',
+      defaultRecipient: 'compras@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Balance de Almacén e Inventario',
+      attachmentName: `Inventario_Almacen_${new Date().toISOString().split('T')[0]}.csv`
+    });
+  };
+
+  const handleExportWarehouseCSV = () => {
+    const headers = ['ID', 'Nombre Insumo', 'Categoria', 'Unidad', 'Stock Actual', 'Stock Minimo', 'Costo Unitario MXN', 'Valor Total MXN', 'Estado'];
+    const rows = supplies.map(s => [
+      s.id,
+      `"${s.name}"`,
+      s.category,
+      s.unit,
+      s.currentStock,
+      s.minimumStock,
+      s.costPerUnit,
+      (s.currentStock * s.costPerUnit).toFixed(2),
+      s.currentStock <= s.minimumStock ? 'BAJO STOCK' : 'OPTIMO'
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Inventario_Almacen_CleanPro_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Finances Email & Export Handlers
+  const handleSendFinancesEmail = () => {
+    const subject = `[ESTADO FINANCIERO] Balance General y Flujo de Operaciones - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
+    const body = `Estimada Dirección General / Contabilidad,\n\n` +
+      `Se remite el estado de cuenta y balance financiero operativo correspondiente al período:\n\n` +
+      `RESUMEN CONTABLE:\n` +
+      `• Ingresos Totales (Cobros): $${totalIncome.toLocaleString('es-MX')} MXN\n` +
+      `• Gastos Operativos (Egresos): $${totalExpense.toLocaleString('es-MX')} MXN\n` +
+      `• BALANCE NETO RESULTANTE: $${netBalance.toLocaleString('es-MX')} MXN\n\n` +
+      `ÚLTIMOS MOVIMIENTOS REGISTRADOS:\n` +
+      finances.slice(0, 10).map((tx, idx) => ` ${idx + 1}. [${tx.type.toUpperCase()}] ${tx.date} - ${tx.concept} (${tx.entity || 'N/A'}): $${tx.amount.toLocaleString('es-MX')} MXN`).join('\n') +
+      `\n\nAtentamente,\nDirección de Administración y Finanzas\nCleanPro Servicios Integrales S.A. de C.V.`;
+
+    setEmailModalData({
+      title: 'Enviar Estado Financiero por Correo',
+      defaultRecipient: 'contabilidad@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Estado Financiero y Libro Mayor',
+      attachmentName: `Libro_Financiero_${new Date().toISOString().split('T')[0]}.csv`
+    });
+  };
+
+  const handleExportFinancesCSV = () => {
+    const headers = ['ID', 'Fecha', 'Tipo', 'Categoria', 'Concepto', 'Cliente_Proveedor', 'Monto MXN'];
+    const rows = finances.map(tx => [
+      tx.id,
+      tx.date,
+      tx.type,
+      tx.category,
+      `"${tx.concept}"`,
+      `"${tx.entity || ''}"`,
+      tx.amount
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Libro_Movimientos_Financieros_CleanPro_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleResolveIncident = (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,7 +531,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Evidence Review Panel */}
           <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
                   <Camera className="w-5 h-5" />
@@ -288,6 +542,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </h3>
                   <p className="text-xs text-slate-400">Auditoría fotográfica y tareas realizadas en campo</p>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleSendSupervisionEmail}
+                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Enviar informe ejecutivo de supervisión por correo"
+                >
+                  <Mail className="w-3.5 h-3.5" /> Enviar por Correo
+                </button>
+                <button
+                  onClick={handleDownloadSupervisionHTML}
+                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Descargar informe en formato HTML"
+                >
+                  <Download className="w-3.5 h-3.5" /> Descargar (HTML)
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
+                </button>
               </div>
             </div>
 
@@ -420,23 +697,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {inc.description}
                   </p>
 
-                  {inc.photoUrl && (
-                    <div className="flex items-center gap-2 mb-3">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <button
+                      onClick={() => handleSendIncidentEmail(inc)}
+                      className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Enviar Notificación de Incidencia por Correo"
+                    >
+                      <Mail className="w-3.5 h-3.5" /> Correo
+                    </button>
+                    <button
+                      onClick={() => setSelectedIncidentForReport(inc)}
+                      className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Ver / Imprimir Reporte Técnico PDF"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Reporte PDF
+                    </button>
+                    {inc.photoUrl && (
                       <button
                         onClick={() => setViewingIncident(inc)}
                         className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
                       >
-                        <Eye className="w-3.5 h-3.5" /> Ver foto de evidencia
+                        <Eye className="w-3.5 h-3.5" /> Foto
                       </button>
-                      <button
-                        onClick={() => setSelectedIncidentForReport(inc)}
-                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                        title="Ver / Imprimir Reporte Técnico PDF"
-                      >
-                        <Printer className="w-3.5 h-3.5" /> Reporte PDF
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {inc.status === 'resuelto' ? (
                     <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-900">
@@ -586,7 +870,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Central Inventory Grid */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
                 <h3 className="font-bold text-slate-800 text-lg">
                   Inventario Central y Almacén
@@ -596,9 +880,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleSendWarehouseEmail}
+                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Enviar balance de stock e insumos por correo"
+                >
+                  <Mail className="w-3.5 h-3.5" /> Enviar por Correo
+                </button>
+                <button
+                  onClick={handleExportWarehouseCSV}
+                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Descargar inventario en formato CSV / Excel"
+                >
+                  <Download className="w-3.5 h-3.5" /> Exportar (CSV)
+                </button>
                 <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                  {supplies.length} Insumos registrados
+                  {supplies.length} Insumos
                 </span>
               </div>
             </div>
@@ -848,22 +1146,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Transactions Ledger */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
                 <h3 className="font-bold text-slate-800 text-lg">
                   Libro de Movimientos Financieros
                 </h3>
                 <p className="text-xs text-slate-400 font-medium">
-                  Registro detallado de ingresos y egresos
+                  Registro detallado de ingresos, egresos y balance operativo
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowNewFinanceModal(true)}
-                className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-lg shadow-slate-200"
-              >
-                <Plus className="w-4 h-4" /> Registrar Movimiento
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleSendFinancesEmail}
+                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Enviar estado financiero y balance por correo"
+                >
+                  <Mail className="w-3.5 h-3.5" /> Enviar por Correo
+                </button>
+                <button
+                  onClick={handleExportFinancesCSV}
+                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Descargar libro financiero en formato CSV / Excel"
+                >
+                  <Download className="w-3.5 h-3.5" /> Exportar (CSV)
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
+                </button>
+                <button
+                  onClick={() => setShowNewFinanceModal(true)}
+                  className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-lg shadow-slate-200"
+                >
+                  <Plus className="w-4 h-4" /> Registrar Movimiento
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -1225,6 +1545,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <IncidentReportModal
           incident={selectedIncidentForReport}
           onClose={() => setSelectedIncidentForReport(null)}
+        />
+      )}
+
+      {/* Email Sender Modal */}
+      {emailModalData && (
+        <EmailSenderModal
+          modalData={emailModalData}
+          onClose={() => setEmailModalData(null)}
         />
       )}
     </div>

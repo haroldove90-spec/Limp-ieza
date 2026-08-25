@@ -15,9 +15,12 @@ import {
   Trash2,
   X,
   SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  Mail,
+  Send
 } from 'lucide-react';
 import { SupplyItem, WarehouseMovement } from '../../../types';
+import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 
 interface WarehouseOperativeModuleProps {
   supplies: SupplyItem[];
@@ -49,6 +52,7 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
   const [adjustingSupply, setAdjustingSupply] = useState<SupplyItem | null>(null);
   const [newAdjustStockValue, setNewAdjustStockValue] = useState<number>(0);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
 
   // Add Movement Form State
   const [selectedSupplyId, setSelectedSupplyId] = useState(supplies[0]?.id || '');
@@ -199,6 +203,141 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
     document.body.removeChild(link);
   };
 
+  const handleSendWarehouseEmail = () => {
+    const dateStr = new Date().toISOString().split('T')[0];
+    const lowStockItems = supplies.filter((s) => s.currentStock <= s.minStock);
+    const recentMoves = movements.slice(0, 8);
+
+    const subject = `[REPORTE DE ALMACÉN Y KARDEX] Estado de Existencias y Movimientos (${dateStr})`;
+    const body = `Estimado Departamento de Compras / Almacén Central,\n\n` +
+      `Se remite el balance de existencias y registro de movimientos de materiales e insumos:\n\n` +
+      `• Total Insumos en Catálogo: ${supplies.length} productos\n` +
+      `• Entradas Acumuladas: +${totalEntradasCount} unidades\n` +
+      `• Salidas a Servicios: -${totalSalidasCount} unidades\n` +
+      `• Insumos en Nivel Crítico o Mínimo: ${lowStockItems.length} productos\n\n` +
+      (lowStockItems.length > 0 ? `ALERTAS DE REPOSICIÓN URGENTE:\n${lowStockItems.map((i) => ` - ${i.name}: ${i.currentStock} ${i.unit} (Mínimo requerido: ${i.minStock})`).join('\n')}\n\n` : '') +
+      `ÚLTIMOS MOVIMIENTOS REGISTRADOS:\n` +
+      recentMoves.map((m) => ` [${m.type.toUpperCase()}] ${m.quantity} ${m.unit} de ${m.supplyName} - Motivo: ${m.reason} (${m.operativeName})`).join('\n') +
+      `\n\nAtentamente,\nControl Operativo de Almacén\nCleanPro Servicios Integrales S.A. de C.V.`;
+
+    setEmailModalData({
+      title: 'Enviar Reporte de Almacén por Correo',
+      defaultRecipient: 'compras@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Kardex de Insumos',
+      attachmentName: `Balance_Almacen_${dateStr}.csv`
+    });
+  };
+
+  const handleDownloadHTMLReport = () => {
+    const dateStr = new Date().toISOString().split('T')[0];
+    const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte de Almacén y Kardex de Insumos - ${dateStr}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 30px; color: #1e293b; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; }
+    .logo { font-size: 22px; font-weight: 800; color: #2563eb; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+    .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; }
+    .stat-val { font-size: 20px; font-weight: 800; color: #0f172a; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+    th { background: #f1f5f9; padding: 10px; text-align: left; font-weight: 700; border-bottom: 1px solid #cbd5e1; }
+    td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">CleanPro Servicios Integrales</div>
+      <div style="font-size: 13px; color: #64748b;">Reporte Oficial de Almacén y Control de Suministros</div>
+    </div>
+    <div style="text-align: right; font-size: 12px; color: #64748b;">
+      Fecha de Emisión: <strong>${dateStr}</strong>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div style="font-size: 11px; color: #64748b;">TOTAL PRODUCTOS</div>
+      <div class="stat-val">${supplies.length} Insumos</div>
+    </div>
+    <div class="stat-card">
+      <div style="font-size: 11px; color: #16a34a;">TOTAL ENTRADAS</div>
+      <div class="stat-val" style="color: #16a34a;">+${totalEntradasCount} U.</div>
+    </div>
+    <div class="stat-card">
+      <div style="font-size: 11px; color: #ea580c;">SALIDAS A CAMPO</div>
+      <div class="stat-val" style="color: #ea580c;">-${totalSalidasCount} U.</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 25px; font-size: 14px; text-transform: uppercase;">1. Estado Actual de Stock en Almacén</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Insumo</th>
+        <th>Categoría</th>
+        <th>Stock Actual</th>
+        <th>Nivel Mínimo</th>
+        <th>Unidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${supplies.map((s) => `
+        <tr>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.category}</td>
+          <td style="font-weight: bold; color: ${s.currentStock <= s.minStock ? '#dc2626' : '#0f172a'};">${s.currentStock}</td>
+          <td>${s.minStock}</td>
+          <td>${s.unit}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <h3 style="margin-top: 30px; font-size: 14px; text-transform: uppercase;">2. Kardex de Movimientos Recientes</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Folio</th>
+        <th>Fecha / Hora</th>
+        <th>Tipo</th>
+        <th>Insumo</th>
+        <th>Cantidad</th>
+        <th>Responsable</th>
+        <th>Motivo / Destino</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${movements.map((m) => `
+        <tr>
+          <td>${m.id}</td>
+          <td>${m.date} ${m.time}</td>
+          <td style="font-weight: bold; color: ${m.type === 'entrada' ? '#16a34a' : '#ea580c'};">${m.type.toUpperCase()}</td>
+          <td>${m.supplyName}</td>
+          <td>${m.quantity} ${m.unit}</td>
+          <td>${m.operativeName}</td>
+          <td>${m.reason} (${m.serviceOrLocation || 'Campo'})</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Reporte_Almacen_${dateStr}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handlePrintPDF = () => {
     window.print();
   };
@@ -227,10 +366,23 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
             <Plus className="w-4 h-4" /> Registrar Toma / Entrada
           </button>
           <button
+            onClick={handleSendWarehouseEmail}
+            className="px-4 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2 cursor-pointer transition-all"
+            title="Enviar balance de existencias y movimientos por correo"
+          >
+            <Mail className="w-4 h-4" /> Enviar por Correo
+          </button>
+          <button
             onClick={handleExportCSV}
             className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2 cursor-pointer transition-all"
           >
             <FileSpreadsheet className="w-4 h-4" /> Descargar Excel (.csv)
+          </button>
+          <button
+            onClick={handleDownloadHTMLReport}
+            className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2 cursor-pointer transition-all"
+          >
+            <Download className="w-4 h-4" /> Descargar Reporte (HTML)
           </button>
           <button
             onClick={handlePrintPDF}
@@ -874,6 +1026,13 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
           </div>
         </div>
       )}
+
+      {/* Email Sender Modal */}
+      <EmailSenderModal
+        data={emailModalData}
+        isOpen={!!emailModalData}
+        onClose={() => setEmailModalData(null)}
+      />
     </div>
   );
 };

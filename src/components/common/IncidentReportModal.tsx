@@ -1,6 +1,7 @@
-import React from 'react';
-import { X, Printer, Download, MapPin, Clock, Calendar, User, ShieldAlert, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Printer, Download, MapPin, Clock, Calendar, User, ShieldAlert, CheckCircle, Mail } from 'lucide-react';
 import { IncidentReport } from '../../types';
+import { EmailSenderModal, EmailModalData } from './EmailSenderModal';
 
 interface IncidentReportModalProps {
   incident: IncidentReport | null;
@@ -11,10 +12,38 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
   incident,
   onClose
 }) => {
+  const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
+
   if (!incident) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleOpenEmailModal = () => {
+    const subject = `[REPORTE DE INCIDENCIA] ${incident.id} - ${incident.title} (${incident.clientName})`;
+    const body = `Estimado equipo / Cliente,\n\nSe comparte el Reporte Técnico Oficial de Incidencia levantado en campo:\n\n` +
+      `• Folio de Acta: ${incident.id}\n` +
+      `• Cliente / Sede: ${incident.clientName}\n` +
+      `• Servicio ID: ${incident.serviceId}\n` +
+      `• Ubicación Exacta: ${incident.location}\n` +
+      `• Tipo de Incidencia: ${incident.type.toUpperCase().replace('_', ' ')}\n` +
+      `• Título: ${incident.title}\n` +
+      `• Fecha y Hora: ${incident.date} a las ${incident.time} hrs\n` +
+      `• Técnico Responsable: ${incident.operativeName}\n` +
+      `• Estado Actual: ${incident.status === 'resuelto' ? 'RESUELTO / VALIDADO' : 'EN REVISIÓN'}\n\n` +
+      `DESCRIPCIÓN DEL HECHO:\n${incident.description}\n\n` +
+      (incident.adminResolution ? `DICTAMEN ADMINISTRATIVO:\n${incident.adminResolution}\n\n` : '') +
+      `Atentamente,\nCleanPro Servicios Integrales S.A. de C.V.\nInsurgentes Sur #1450, CDMX • Tel: +52 (55) 8000-9200`;
+
+    setEmailModalData({
+      title: 'Enviar Reporte de Incidencia por Correo',
+      defaultRecipient: 'administracion@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Incidencia',
+      attachmentName: `Acta_Incidencia_${incident.id}.pdf`
+    });
   };
 
   const handleDownloadReport = () => {
@@ -150,6 +179,14 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
             Vista Previa de Reporte Oficial
           </span>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenEmailModal}
+              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Enviar este reporte oficial por correo electrónico"
+            >
+              <Mail className="w-4 h-4" />
+              <span>Enviar por Correo</span>
+            </button>
             <button
               onClick={handlePrint}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-md shadow-blue-200 transition-colors"
@@ -340,6 +377,12 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
           </button>
         </div>
       </div>
+
+      <EmailSenderModal
+        data={emailModalData}
+        isOpen={!!emailModalData}
+        onClose={() => setEmailModalData(null)}
+      />
     </div>
   );
 };

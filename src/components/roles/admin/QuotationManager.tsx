@@ -13,9 +13,11 @@ import {
   Calendar,
   Send,
   Eye,
-  Edit3
+  Edit3,
+  Mail
 } from 'lucide-react';
 import { Quotation, QuotationItem } from '../../../types';
+import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 
 interface QuotationManagerProps {
   quotations: Quotation[];
@@ -31,6 +33,7 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(quotations[0] || null);
   const [isEditing, setIsEditing] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
 
   // Form states for creating / editing
   const [formData, setFormData] = useState<Quotation>(
@@ -183,6 +186,40 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({
     setIsEditing(true);
   };
 
+  const handleSendQuotationEmail = (q: Quotation) => {
+    const subject = `[PROPUESTA COMERCIAL] ${q.folio} - ${q.companyName} para ${q.clientName || 'Cliente'}`;
+    const body = `Estimado(a) ${q.clientContact || q.clientName || 'Cliente'},\n\n` +
+      `Es un gusto saludarle. Por medio de la presente ponemos a su disposición la cotización formal de servicios solicitada:\n\n` +
+      `• Folio de Cotización: ${q.folio}\n` +
+      `• Fecha de Emisión: ${q.date} (Válida hasta: ${q.validUntil})\n` +
+      `• Cliente / Razón Social: ${q.clientName}\n` +
+      `• Atención a: ${q.clientContact || 'Dirección de Operaciones'}\n\n` +
+      `DESGLOSE DE SERVICIOS Y COSTOS:\n` +
+      q.items.map((it, idx) => ` ${idx + 1}. ${it.serviceType} (${it.quantity} ${it.unit} a $${it.unitCost.toLocaleString('es-MX')} c/u) = $${(it.subtotal || it.quantity * it.unitCost).toLocaleString('es-MX')} MXN\n    Detalle: ${it.description || 'Sin notas'}`).join('\n') +
+      `\n\nRESUMEN FINANCIERO:\n` +
+      `• Subtotal: $${q.subtotal.toLocaleString('es-MX')} MXN\n` +
+      `• IVA (16%): $${q.taxAmount.toLocaleString('es-MX')} MXN\n` +
+      `• TOTAL: $${q.total.toLocaleString('es-MX')} MXN\n\n` +
+      `CONDICIONES DEL SERVICIO:\n${q.serviceConditions}\n\n` +
+      `FORMA DE PAGO:\n${q.paymentTerms}\n\n` +
+      `Quedamos a sus órdenes para cualquier duda o ajuste a la presente propuesta.\n\n` +
+      `Atentamente,\n` +
+      `${q.companyName}\n` +
+      `Tel: ${q.companyPhone} | Correo: ${q.companyEmail}\n` +
+      `${q.companyAddress}`;
+
+    setEmailModalData({
+      title: 'Enviar Cotización Formal por Correo',
+      defaultRecipient: q.clientEmail || 'contacto@cliente.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Cotización Comercial',
+      attachmentName: `Cotizacion_${q.folio}.pdf`
+    });
+
+    onUpdateStatus(q.id, 'enviada');
+  };
+
   const currentViewing = selectedQuotation || formData;
 
   return (
@@ -260,9 +297,22 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({
 
                   <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 font-medium">
                     <span>{q.date}</span>
-                    <strong className="text-slate-900 font-bold">
-                      ${q.total.toLocaleString('es-MX')} MXN
-                    </strong>
+                    <div className="flex items-center gap-2">
+                      <strong className="text-slate-900 font-bold">
+                        ${q.total.toLocaleString('es-MX')} MXN
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSendQuotationEmail(q);
+                        }}
+                        className="p-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 transition-colors cursor-pointer"
+                        title="Enviar cotización por correo"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -577,7 +627,13 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleSendQuotationEmail(currentViewing)}
+                    className="px-4 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <Mail className="w-4 h-4" /> Enviar por Correo
+                  </button>
                   <button
                     onClick={() => setIsEditing(true)}
                     className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
@@ -769,6 +825,13 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({
           )}
         </div>
       </div>
+
+      {/* Email Dispatcher Modal */}
+      <EmailSenderModal
+        data={emailModalData}
+        isOpen={!!emailModalData}
+        onClose={() => setEmailModalData(null)}
+      />
     </div>
   );
 };
