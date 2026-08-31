@@ -113,6 +113,11 @@ export interface ClientProfile {
   contractFrequency: string;
   auto3DayReport: boolean;
   monthlyFee: number;
+  assignedEmployeeId?: string;
+  assignedEmployeeName?: string;
+  assignedEmployeePhone?: string;
+  assignedEmployeeRole?: string;
+  notes?: string;
 }
 
 export interface EmployeeProfile {

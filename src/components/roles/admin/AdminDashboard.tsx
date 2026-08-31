@@ -28,7 +28,12 @@ import {
   FileText,
   Printer,
   Mail,
-  Download
+  Download,
+  MessageSquare,
+  FileSpreadsheet,
+  UserCheck,
+  UserPlus,
+  Phone
 } from 'lucide-react';
 import {
   CleaningService,
@@ -46,6 +51,12 @@ import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { QuotationManager } from './QuotationManager';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
+import {
+  exportToExcel,
+  exportToHTMLPDF,
+  shareViaWhatsApp,
+  cleanPhoneNumber
+} from '../../../utils/exportUtils';
 
 interface AdminDashboardProps {
   activeTab: string;
@@ -69,6 +80,7 @@ interface AdminDashboardProps {
   onToggleAutoReport: (clientId: string) => void;
   onSaveQuotation: (quotation: Quotation) => void;
   onUpdateQuotationStatus: (quotationId: string, status: Quotation['status']) => void;
+  onAssignEmployeeToClient?: (clientId: string, employeeId: string) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -92,7 +104,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onAddTransaction,
   onToggleAutoReport,
   onSaveQuotation,
-  onUpdateQuotationStatus
+  onUpdateQuotationStatus,
+  onAssignEmployeeToClient
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
@@ -106,17 +119,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [stockModalSupply, setStockModalSupply] = useState<SupplyItem | null>(null);
   const [stockDelta, setStockDelta] = useState<number>(10);
 
+  // Assignment modal state
+  const [assignModalClient, setAssignModalClient] = useState<ClientProfile | null>(null);
+  const [selectedEmpForAssign, setSelectedEmpForAssign] = useState<string>('');
+
   // Forms modals
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientContact, setNewClientContact] = useState('');
   const [newClientAddress, setNewClientAddress] = useState('');
   const [newClientFee, setNewClientFee] = useState(12000);
+  const [newClientAssignedEmp, setNewClientAssignedEmp] = useState(employees[0]?.id || '');
 
   const [showNewEmployeeModal, setShowNewEmployeeModal] = useState(false);
   const [newEmpName, setNewEmpName] = useState('');
   const [newEmpRole, setNewEmpRole] = useState('Técnico Especialista de Limpieza');
   const [newEmpZone, setNewEmpZone] = useState('Zona Centro');
+  const [newEmpPhone, setNewEmpPhone] = useState('+52 55 1234 5678');
 
   const [showNewServiceModal, setShowNewServiceModal] = useState(false);
   const [srvClientName, setSrvClientName] = useState(clients[0]?.name || '');
@@ -145,14 +164,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
 
-  // Email & Export Handlers for Admin Supervision
+  // 1. SUPERVISION & SERVICES: EXPORT & SHARE
+  const handleExportSupervisionExcel = () => {
+    const headers = ['ID Servicio', 'Cliente / Sede', 'Personal Técnico', 'Fecha', 'Horario', 'Estado', 'Aprobado Admin', 'Tareas Completadas', 'Total Tareas', 'Evidencias'];
+    const rows = services.map((s) => [
+      s.id,
+      s.clientName,
+      s.operativeName,
+      s.date,
+      s.timeSlot,
+      s.status.toUpperCase(),
+      s.approvedByAdmin ? 'SI' : 'NO',
+      s.tasks.filter((t) => t.completed).length,
+      s.tasks.length,
+      s.evidences.length
+    ]);
+    exportToExcel(`Bitacora_Servicios_Supervision_${new Date().toISOString().split('T')[0]}`, headers, rows);
+  };
+
+  const handleShareSupervisionWhatsApp = () => {
+    const today = new Date().toLocaleDateString('es-MX');
+    const completed = services.filter((s) => s.status === 'completado').length;
+    const pending = services.filter((s) => !s.approvedByAdmin).length;
+    const activeIncidents = incidents.filter((i) => i.status !== 'resuelto').length;
+
+    const text =
+      `🛡️ *REPORTE GERENCIAL DE SUPERVISIÓN - CLEANPRO*\n` +
+      `📅 *Fecha:* ${today}\n\n` +
+      `📊 *RESUMEN GENERAL:*\n` +
+      `• Servicios Totales: ${services.length}\n` +
+      `• Completados: ${completed}\n` +
+      `• Pendientes de Auditoría: ${pending}\n` +
+      `• Incidencias Activas: ${activeIncidents}\n\n` +
+      `📋 *DETALLE OPERATIVO:*\n` +
+      services
+        .map(
+          (s) =>
+            `• [${s.status.toUpperCase()}] *${s.clientName}*\n  Técnico: ${s.operativeName} (${s.timeSlot}) | Auditoría: ${s.approvedByAdmin ? '✅ Aprobado' : '⏳ Pendiente'}`
+        )
+        .join('\n\n') +
+      `\n\n💼 *Dirección de Operaciones CleanPro*`;
+
+    shareViaWhatsApp(text);
+  };
+
   const handleSendSupervisionEmail = () => {
     const completed = services.filter((s) => s.status === 'completado').length;
     const pendingApproval = services.filter((s) => !s.approvedByAdmin).length;
     const activeIncidents = incidents.filter((i) => i.status !== 'resuelto').length;
 
     const subject = `[INFORME GERENCIAL] Balance de Servicios y Calidad - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
-    const body = `Estimada Dirección / Supervisión General,\n\n` +
+    const body =
+      `Estimada Dirección / Supervisión General,\n\n` +
       `A continuación se presenta el resumen ejecutivo de operaciones y control de calidad:\n\n` +
       `MÉTRICAS CLAVE DEL DÍA:\n` +
       `• Servicios Totales Programados: ${services.length}\n` +
@@ -160,10 +223,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       `• Auditorías Pendientes de Aprobación: ${pendingApproval}\n` +
       `• Incidencias Técnicas Activas: ${activeIncidents}\n\n` +
       `DETALLE DE SERVICIOS EN CURSO:\n` +
-      services.map((s, idx) => ` ${idx + 1}. [${s.status.toUpperCase()}] ${s.clientName} - Personal: ${s.operativeName} (${s.timeSlot})\n    Tareas: ${s.tasks.filter(t => t.completed).length}/${s.tasks.length} | Evidencias: ${s.evidences.length}`).join('\n') +
+      services
+        .map(
+          (s, idx) =>
+            ` ${idx + 1}. [${s.status.toUpperCase()}] ${s.clientName} - Personal: ${s.operativeName} (${s.timeSlot})\n    Tareas: ${s.tasks.filter((t) => t.completed).length}/${s.tasks.length} | Evidencias: ${s.evidences.length}`
+        )
+        .join('\n') +
       `\n\nINCIDENCIAS REPORTADAS:\n` +
       (incidents.length > 0
-        ? incidents.map((i, idx) => ` ${idx + 1}. [${i.status.toUpperCase()}] ${i.title} - ${i.clientName} (${i.location})`).join('\n')
+        ? incidents
+            .map(
+              (i, idx) =>
+                ` ${idx + 1}. [${i.status.toUpperCase()}] ${i.title} - ${i.clientName} (${i.location})`
+            )
+            .join('\n')
         : 'Sin incidencias técnicas registradas.') +
       `\n\nQuedamos atentos a cualquier instrucción.\n\n` +
       `Atentamente,\nDirección de Operaciones\nCleanPro Servicios Integrales S.A. de C.V.`;
@@ -245,16 +318,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </tr>
     </thead>
     <tbody>
-      ${services.map(s => `
+      ${services
+        .map(
+          (s) => `
         <tr>
           <td><strong>${s.clientName}</strong></td>
           <td>${s.operativeName}</td>
           <td>${s.timeSlot}</td>
           <td><span style="font-weight:bold; color:${s.approvedByAdmin ? '#16a34a' : '#ca8a04'};">${s.approvedByAdmin ? 'Aprobado' : 'Pendiente'}</span></td>
-          <td>${s.tasks.filter(t => t.completed).length} de ${s.tasks.length}</td>
+          <td>${s.tasks.filter((t) => t.completed).length} de ${s.tasks.length}</td>
           <td>${s.evidences.length} fotos adjuntas</td>
         </tr>
-      `).join('')}
+      `
+        )
+        .join('')}
     </tbody>
   </table>
 
@@ -264,18 +341,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 </body>
 </html>`;
 
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Reporte_Supervision_CleanPro_${new Date().toISOString().split('T')[0]}.html`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportToHTMLPDF(`Reporte_Supervision_CleanPro_${new Date().toISOString().split('T')[0]}`, htmlContent);
+  };
+
+  // 2. INCIDENTS: EXPORT & SHARE
+  const handleExportIncidentsExcel = () => {
+    const headers = ['Folio', 'Fecha', 'Hora', 'Tipo', 'Título', 'Cliente / Sede', 'Ubicación', 'Técnico', 'Estado', 'Resolución'];
+    const rows = incidents.map((i) => [
+      i.id,
+      i.date,
+      i.time,
+      i.type.replace('_', ' ').toUpperCase(),
+      i.title,
+      i.clientName,
+      i.location,
+      i.operativeName,
+      i.status.toUpperCase(),
+      i.adminResolution || 'En proceso de seguimiento'
+    ]);
+    exportToExcel(`Bitacora_Incidencias_CleanPro_${new Date().toISOString().split('T')[0]}`, headers, rows);
+  };
+
+  const handleShareIncidentWhatsApp = (inc: IncidentReport) => {
+    const text =
+      `⚠️ *REPORTE DE INCIDENCIA TÉCNICA - FOLIO #${inc.id}*\n` +
+      `📍 *Cliente / Sede:* ${inc.clientName} (${inc.location})\n` +
+      `🕒 *Fecha/Hora:* ${inc.date} a las ${inc.time}\n` +
+      `📌 *Tipo:* ${inc.type.replace('_', ' ').toUpperCase()}\n` +
+      `📝 *Título:* ${inc.title}\n` +
+      `🔍 *Descripción:* ${inc.description}\n` +
+      `👷 *Técnico:* ${inc.operativeName}\n` +
+      `📊 *Estado:* ${inc.status.toUpperCase()}\n` +
+      (inc.adminResolution ? `✅ *Resolución:* ${inc.adminResolution}\n` : '') +
+      `\n🛡️ *CleanPro Control Central*`;
+
+    shareViaWhatsApp(text);
   };
 
   const handleSendIncidentEmail = (inc: IncidentReport) => {
     const subject = `[ALERTA INCIDENCIA] ${inc.title} - ${inc.clientName}`;
-    const body = `Estimado Equipo Directivo / Cliente,\n\n` +
+    const body =
+      `Estimado Equipo Directivo / Cliente,\n\n` +
       `Se comparte el informe técnico de la incidencia registrada en instalaciones:\n\n` +
       `• Folio: #${inc.id}\n` +
       `• Tipo: ${inc.type.replace('_', ' ').toUpperCase()}\n` +
@@ -298,21 +404,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
-  // Warehouse Email & Export Handlers
+  // 3. WAREHOUSE & SUPPLIES: EXPORT & SHARE
+  const handleExportWarehouseExcel = () => {
+    const headers = ['ID', 'Nombre Insumo', 'Categoría', 'Unidad', 'Stock Actual', 'Stock Mínimo', 'Costo Unitario MXN', 'Valor Total MXN', 'Estado Stock'];
+    const rows = supplies.map((s) => [
+      s.id,
+      s.name,
+      s.category,
+      s.unit,
+      s.currentStock,
+      s.minimumStock,
+      s.costPerUnit,
+      (s.currentStock * s.costPerUnit).toFixed(2),
+      s.currentStock <= s.minimumStock ? 'BAJO STOCK' : 'OPTIMO'
+    ]);
+    exportToExcel(`Inventario_Almacen_CleanPro_${new Date().toISOString().split('T')[0]}`, headers, rows);
+  };
+
+  const handleShareWarehouseWhatsApp = () => {
+    const lowStock = supplies.filter((s) => s.currentStock <= s.minimumStock);
+    const totalVal = supplies.reduce((acc, s) => acc + s.currentStock * s.costPerUnit, 0);
+
+    const text =
+      `📦 *REPORTE DE ALMACÉN E INSUMOS CENTRALES - CLEANPRO*\n` +
+      `📅 *Fecha:* ${new Date().toLocaleDateString('es-MX')}\n` +
+      `💰 *Valor Total Inventario:* $${totalVal.toLocaleString('es-MX')} MXN\n` +
+      `⚠️ *Insumos Bajo Stock:* ${lowStock.length}\n\n` +
+      `📋 *ESTADO DE INSUMOS CRÍTICOS:*\n` +
+      (lowStock.length > 0
+        ? lowStock
+            .map(
+              (s) =>
+                `• ⚠️ *${s.name}*: Stock actual ${s.currentStock} ${s.unit} (Mínimo: ${s.minimumStock} ${s.unit})`
+            )
+            .join('\n')
+        : '✅ Todos los insumos cuentan con stock óptimo.') +
+      `\n\n🛒 *Control de Almacén y Suministros CleanPro*`;
+
+    shareViaWhatsApp(text);
+  };
+
   const handleSendWarehouseEmail = () => {
-    const lowStockCount = supplies.filter(s => s.currentStock <= s.minimumStock).length;
-    const totalInventoryValue = supplies.reduce((acc, s) => acc + (s.currentStock * s.costPerUnit), 0);
+    const lowStockCount = supplies.filter((s) => s.currentStock <= s.minimumStock).length;
+    const totalInventoryValue = supplies.reduce((acc, s) => acc + s.currentStock * s.costPerUnit, 0);
 
     const subject = `[REPORTE ALMACÉN] Estado de Stock e Insumos Centrales - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
-    const body = `Estimada Administración / Compras,\n\n` +
+    const body =
+      `Estimada Administración / Compras,\n\n` +
       `A continuación se detalla el balance de existencias e insumos del Almacén Central:\n\n` +
       `RESUMEN DE ALMACÉN:\n` +
       `• Insumos Catalogados: ${supplies.length}\n` +
       `• Insumos en Alerta (Bajo Stock): ${lowStockCount}\n` +
       `• Valorización de Inventario: $${totalInventoryValue.toLocaleString('es-MX')} MXN\n` +
-      `• Requerimientos Pendientes de Despacho: ${supplyRequests.filter(r => r.status === 'pendiente').length}\n\n` +
+      `• Requerimientos Pendientes de Despacho: ${supplyRequests.filter((r) => r.status === 'pendiente').length}\n\n` +
       `DETALLE DE EXISTENCIAS:\n` +
-      supplies.map((s, idx) => ` ${idx + 1}. ${s.name} (${s.category}) | Stock: ${s.currentStock} ${s.unit} (Mín: ${s.minimumStock}) | Costo: $${s.costPerUnit} MXN ${s.currentStock <= s.minimumStock ? '⚠️ [REPOSICIÓN URGENTE]' : '✅'}`).join('\n') +
+      supplies
+        .map(
+          (s, idx) =>
+            ` ${idx + 1}. ${s.name} (${s.category}) | Stock: ${s.currentStock} ${s.unit} (Mín: ${s.minimumStock}) | Costo: $${s.costPerUnit} MXN ${s.currentStock <= s.minimumStock ? '⚠️ [REPOSICIÓN URGENTE]' : '✅'}`
+        )
+        .join('\n') +
       `\n\nAtentamente,\nControl de Almacén y Suministros\nCleanPro Servicios Integrales`;
 
     setEmailModalData({
@@ -325,41 +476,121 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
-  const handleExportWarehouseCSV = () => {
-    const headers = ['ID', 'Nombre Insumo', 'Categoria', 'Unidad', 'Stock Actual', 'Stock Minimo', 'Costo Unitario MXN', 'Valor Total MXN', 'Estado'];
-    const rows = supplies.map(s => [
-      s.id,
-      `"${s.name}"`,
-      s.category,
-      s.unit,
-      s.currentStock,
-      s.minimumStock,
-      s.costPerUnit,
-      (s.currentStock * s.costPerUnit).toFixed(2),
-      s.currentStock <= s.minimumStock ? 'BAJO STOCK' : 'OPTIMO'
+  // 4. DIRECTORY & ASSIGNMENTS: EXPORT & SHARE
+  const handleExportDirectoryExcel = () => {
+    const headers = [
+      'ID Cliente',
+      'Nombre Cliente / Sede',
+      'Contacto',
+      'Teléfono Cliente',
+      'Dirección',
+      'Cuota Mensual MXN',
+      'Frecuencia',
+      'ID Técnico Asignado',
+      'Técnico Asignado',
+      'Teléfono Técnico',
+      'Rol Técnico'
+    ];
+    const rows = clients.map((c) => [
+      c.id,
+      c.name,
+      c.contactPerson,
+      c.phone,
+      c.address,
+      c.monthlyFee,
+      c.contractFrequency,
+      c.assignedEmployeeId || 'SIN_ASIGNAR',
+      c.assignedEmployeeName || 'Sin Técnico Asignado',
+      c.assignedEmployeePhone || 'N/A',
+      c.assignedEmployeeRole || 'N/A'
     ]);
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Inventario_Almacen_CleanPro_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportToExcel(`Directorio_Clientes_Asignaciones_${new Date().toISOString().split('T')[0]}`, headers, rows);
   };
 
-  // Finances Email & Export Handlers
+  const handleShareDirectoryWhatsApp = () => {
+    const text =
+      `🏢 *DIRECTORIO DE CLIENTES Y PERSONAL ASIGNADO - CLEANPRO*\n` +
+      `📅 *Fecha:* ${new Date().toLocaleDateString('es-MX')}\n` +
+      `👥 *Clientes Totales:* ${clients.length} | 👷 *Técnicos:* ${employees.length}\n\n` +
+      `📍 *ASIGNACIONES POR SEDE:*\n` +
+      clients
+        .map(
+          (c) =>
+            `• *${c.name}*\n  Contacto: ${c.contactPerson} (${c.phone})\n  👷 Técnico Asignado: *${c.assignedEmployeeName || 'Sin Asignar'}* (${c.assignedEmployeePhone || 'N/A'})`
+        )
+        .join('\n\n') +
+      `\n\n✨ *Gestión y Asignación Operativa CleanPro*`;
+
+    shareViaWhatsApp(text);
+  };
+
+  const handleSendDirectoryEmail = () => {
+    const subject = `[DIRECTORIO DE ASIGNACIONES] Clientes y Personal Operativo CleanPro (${new Date().toLocaleDateString('es-MX')})`;
+    const body =
+      `Estimado Equipo Administrativo,\n\n` +
+      `Se adjunta el directorio operativo oficial con la asignación vigente de técnicos por cliente:\n\n` +
+      clients
+        .map(
+          (c, idx) =>
+            ` ${idx + 1}. ${c.name} (${c.address})\n    - Contacto: ${c.contactPerson} | Tel: ${c.phone}\n    - Técnico Asignado: ${c.assignedEmployeeName || 'Sin Asignar'} (${c.assignedEmployeeRole || 'Técnico'})\n    - Teléfono Técnico: ${c.assignedEmployeePhone || 'N/A'}\n    - Póliza: $${c.monthlyFee.toLocaleString('es-MX')} MXN (${c.contractFrequency})\n`
+        )
+        .join('\n') +
+      `\nAtentamente,\nDirección de Operaciones y Recursos Humanos\nCleanPro Servicios Integrales`;
+
+    setEmailModalData({
+      title: 'Enviar Directorio de Asignaciones por Correo',
+      defaultRecipient: 'operaciones@cleanproservicios.com',
+      defaultSubject: subject,
+      defaultBody: body,
+      reportType: 'Directorio y Asignaciones',
+      attachmentName: `Directorio_Asignaciones_${new Date().toISOString().split('T')[0]}.csv`
+    });
+  };
+
+  // 5. FINANCES: EXPORT & SHARE
+  const handleExportFinancesExcel = () => {
+    const headers = ['ID', 'Fecha', 'Tipo', 'Categoría', 'Concepto', 'Cliente / Proveedor', 'Monto MXN'];
+    const rows = finances.map((tx) => [
+      tx.id,
+      tx.date,
+      tx.type.toUpperCase(),
+      tx.category,
+      tx.concept,
+      tx.entity || '',
+      tx.amount
+    ]);
+    exportToExcel(`Libro_Financiero_CleanPro_${new Date().toISOString().split('T')[0]}`, headers, rows);
+  };
+
+  const handleShareFinancesWhatsApp = () => {
+    const text =
+      `💰 *ESTADO FINANCIERO Y BALANCE GENERAL - CLEANPRO*\n` +
+      `📅 *Fecha:* ${new Date().toLocaleDateString('es-MX')}\n\n` +
+      `📈 *Ingresos Totales (Cobros):* $${totalIncome.toLocaleString('es-MX')} MXN\n` +
+      `📉 *Gastos Operativos (Egresos):* $${totalExpense.toLocaleString('es-MX')} MXN\n` +
+      `💵 *BALANCE NETO:* +$${netBalance.toLocaleString('es-MX')} MXN\n\n` +
+      `💼 *CleanPro Contabilidad y Finanzas*`;
+
+    shareViaWhatsApp(text);
+  };
+
   const handleSendFinancesEmail = () => {
     const subject = `[ESTADO FINANCIERO] Balance General y Flujo de Operaciones - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
-    const body = `Estimada Dirección General / Contabilidad,\n\n` +
+    const body =
+      `Estimada Dirección General / Contabilidad,\n\n` +
       `Se remite el estado de cuenta y balance financiero operativo correspondiente al período:\n\n` +
       `RESUMEN CONTABLE:\n` +
       `• Ingresos Totales (Cobros): $${totalIncome.toLocaleString('es-MX')} MXN\n` +
       `• Gastos Operativos (Egresos): $${totalExpense.toLocaleString('es-MX')} MXN\n` +
       `• BALANCE NETO RESULTANTE: $${netBalance.toLocaleString('es-MX')} MXN\n\n` +
       `ÚLTIMOS MOVIMIENTOS REGISTRADOS:\n` +
-      finances.slice(0, 10).map((tx, idx) => ` ${idx + 1}. [${tx.type.toUpperCase()}] ${tx.date} - ${tx.concept} (${tx.entity || 'N/A'}): $${tx.amount.toLocaleString('es-MX')} MXN`).join('\n') +
+      finances
+        .slice(0, 10)
+        .map(
+          (tx, idx) =>
+            ` ${idx + 1}. [${tx.type.toUpperCase()}] ${tx.date} - ${tx.concept} (${tx.entity || 'N/A'}): $${tx.amount.toLocaleString('es-MX')} MXN`
+        )
+        .join('\n') +
       `\n\nAtentamente,\nDirección de Administración y Finanzas\nCleanPro Servicios Integrales S.A. de C.V.`;
 
     setEmailModalData({
@@ -372,28 +603,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
-  const handleExportFinancesCSV = () => {
-    const headers = ['ID', 'Fecha', 'Tipo', 'Categoria', 'Concepto', 'Cliente_Proveedor', 'Monto MXN'];
-    const rows = finances.map(tx => [
-      tx.id,
-      tx.date,
-      tx.type,
-      tx.category,
-      `"${tx.concept}"`,
-      `"${tx.entity || ''}"`,
-      tx.amount
-    ]);
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Libro_Movimientos_Financieros_CleanPro_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
+  // Resolution
   const handleResolveIncident = (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolvingIncId || !resolutionText.trim()) return;
@@ -402,9 +612,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setResolutionText('');
   };
 
+  // Client Creation
   const handleCreateClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newClientName) return;
+
+    const assignedEmp = employees.find((e) => e.id === newClientAssignedEmp);
+
     onAddClient({
       name: newClientName,
       contactPerson: newClientContact || 'Responsable de Sede',
@@ -413,22 +627,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       address: newClientAddress || 'Ciudad de México',
       contractFrequency: 'Lunes a Viernes',
       auto3DayReport: true,
-      monthlyFee: newClientFee
+      monthlyFee: newClientFee,
+      assignedEmployeeId: assignedEmp?.id,
+      assignedEmployeeName: assignedEmp?.name,
+      assignedEmployeePhone: assignedEmp?.phone,
+      assignedEmployeeRole: assignedEmp?.role
     });
+
     setShowNewClientModal(false);
     setNewClientName('');
     setNewClientContact('');
     setNewClientAddress('');
   };
 
+  // Employee Creation
   const handleCreateEmployee = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmpName) return;
     onAddEmployee({
       name: newEmpName,
       role: newEmpRole,
-      phone: '+52 55 1234 5678',
-      email: newEmpName.toLowerCase().replace(/\s+/g, '.') + '@limpiezapro.com',
+      phone: newEmpPhone || '+52 55 1234 5678',
+      email: newEmpName.toLowerCase().replace(/\s+/g, '.') + '@cleanpro.com',
       assignedZone: newEmpZone,
       status: 'activo'
     });
@@ -436,6 +656,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setNewEmpName('');
   };
 
+  // Service Creation
   const handleCreateService = (e: React.FormEvent) => {
     e.preventDefault();
     const client = clients.find((c) => c.name === srvClientName);
@@ -448,33 +669,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       timeSlot: srvTimeSlot,
       status: 'programado',
       operativeId: emp?.id || 'EMP-01',
-      operativeName: srvOperativeName,
-      specialInstructions: srvNotes,
-      totalCost: 1500
+      operativeName: srvOperativeName || 'Carlos Mendoza',
+      notes: srvNotes
     });
+
     setShowNewServiceModal(false);
+    setSrvNotes('');
   };
 
+  // Finance Transaction Creation
   const handleCreateFinance = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!txConcept || !txAmount) return;
+    if (!txConcept) return;
+
     onAddTransaction({
-      date: '2026-08-23',
+      date: new Date().toISOString().split('T')[0],
       type: txType,
       category: txCategory,
       concept: txConcept,
-      clientOrVendor: txEntity || 'General',
-      amount: Number(txAmount),
-      status: 'pagado'
+      entity: txEntity,
+      amount: Number(txAmount)
     });
+
     setShowNewFinanceModal(false);
     setTxConcept('');
     setTxEntity('');
   };
 
+  // Assignment Handler
+  const handleConfirmAssignment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignModalClient || !selectedEmpForAssign) return;
+
+    if (onAssignEmployeeToClient) {
+      onAssignEmployeeToClient(assignModalClient.id, selectedEmpForAssign);
+    }
+    setAssignModalClient(null);
+    setSelectedEmpForAssign('');
+  };
+
+  const handleOpenAssignModal = (client: ClientProfile) => {
+    setAssignModalClient(client);
+    setSelectedEmpForAssign(client.assignedEmployeeId || employees[0]?.id || '');
+  };
+
   return (
     <div className="space-y-6 pb-24 md:pb-12">
-      {/* 1. SUPERVISIÓN Y CONTROL DE CALIDAD */}
+      {/* 1. SUPERVISIÓN Y AUDITORÍA DE CALIDAD */}
       {activeTab === 'supervision_admin' && (
         <div className="space-y-6">
           {/* Header Stats */}
@@ -489,7 +730,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </h3>
               <div className="mt-4 flex items-center gap-1.5 text-xs text-green-600 font-bold">
                 <TrendingUp className="w-3.5 h-3.5" />
-                <span>+12% vs ayer</span>
+                <span>Auditorías en regla</span>
               </div>
             </div>
 
@@ -525,7 +766,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <h3 className="text-4xl font-bold mt-1 text-slate-900">
                 ${netBalance.toLocaleString('es-MX')}
               </h3>
-              <p className="mt-4 text-xs text-slate-400 font-medium">Proyectado: $35,000</p>
+              <p className="mt-4 text-xs text-slate-400 font-medium">Margen neto operativo</p>
             </div>
           </div>
 
@@ -546,24 +787,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
+                  onClick={handleShareSupervisionWhatsApp}
+                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Compartir informe gerencial por WhatsApp"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                </button>
+                <button
                   onClick={handleSendSupervisionEmail}
                   className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
                   title="Enviar informe ejecutivo de supervisión por correo"
                 >
-                  <Mail className="w-3.5 h-3.5" /> Enviar por Correo
+                  <Mail className="w-3.5 h-3.5" /> Correo
+                </button>
+                <button
+                  onClick={handleExportSupervisionExcel}
+                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Exportar bitácora de servicios a Excel"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Excel (CSV)
                 </button>
                 <button
                   onClick={handleDownloadSupervisionHTML}
                   className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
                   title="Descargar informe en formato HTML"
                 >
-                  <Download className="w-3.5 h-3.5" /> Descargar (HTML)
+                  <Download className="w-3.5 h-3.5" /> HTML
                 </button>
                 <button
                   onClick={() => window.print()}
                   className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
                 >
-                  <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
+                  <Printer className="w-3.5 h-3.5" /> Imprimir
                 </button>
               </div>
             </div>
@@ -600,53 +855,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 font-medium">
-                          {service.date} • {service.timeSlot} • Tareas: {completedTasks}/{service.tasks.length}
+                        <p className="text-xs text-slate-400">
+                          {service.date} • {service.timeSlot} • {service.clientAddress}
                         </p>
                       </div>
 
-                      {!service.approvedByAdmin && (
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => onApproveService(service.id)}
-                          className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs md:text-sm transition-colors flex items-center gap-2 self-start md:self-auto cursor-pointer shadow-sm shadow-blue-200"
+                          onClick={() => {
+                            const text = `📋 *SERVICIO ${service.id} - ${service.clientName}*\n📅 *Fecha:* ${service.date} (${service.timeSlot})\n👷 *Técnico:* ${service.operativeName}\n✅ *Tareas:* ${completedTasks}/${service.tasks.length}\n📸 *Evidencias:* ${service.evidences.length} fotos adjuntas.`;
+                            shareViaWhatsApp(text);
+                          }}
+                          className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                         >
-                          <CheckCircle2 className="w-4 h-4" /> Aprobar Calidad
+                          <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                         </button>
-                      )}
+
+                        {!service.approvedByAdmin && (
+                          <button
+                            onClick={() => onApproveService(service.id)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-200 transition-all"
+                          >
+                            <CheckCircle2 className="w-4 h-4" /> Aprobar y Cerrar
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Evidence Thumbnails */}
-                    {service.evidences.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {service.evidences.map((ev) => (
+                    {/* Evidences Photo Grid */}
+                    {service.evidences.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
+                        {service.evidences.map((ev, idx) => (
                           <div
-                            key={ev.id}
+                            key={ev.id || `admin-ev-${service.id}-${idx}`}
                             onClick={() => setViewingEvidence(ev)}
-                            className="p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-300 transition-all cursor-pointer flex items-center gap-3 group"
+                            className="group relative aspect-4/3 rounded-xl overflow-hidden bg-slate-900 cursor-pointer"
                           >
-                            <div className="flex -space-x-2 shrink-0">
-                              <img
-                                src={ev.beforePhotoUrl}
-                                alt="Antes"
-                                className="w-10 h-10 rounded-xl object-cover border border-white"
-                              />
-                              <img
-                                src={ev.afterPhotoUrl}
-                                alt="Después"
-                                className="w-10 h-10 rounded-xl object-cover border border-blue-500"
-                              />
-                            </div>
-                            <div className="overflow-hidden">
-                              <span className="font-semibold text-slate-800 text-xs block truncate group-hover:text-blue-600">
+                            <img
+                              src={ev.afterPhotoUrl || ev.beforePhotoUrl}
+                              alt={ev.area}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent flex items-end p-2">
+                              <span className="text-white text-[10px] font-bold truncate">
                                 {ev.area}
                               </span>
-                              <span className="text-[10px] text-blue-600 font-bold">Ver fotos</span>
                             </div>
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 italic">Sin fotos cargadas en este servicio aún.</p>
                     )}
                   </div>
                 );
@@ -654,120 +911,113 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* Incidents Management */}
+          {/* Incidents Table / Resolution Section */}
           <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-lg">
-                    Gestión y Resolución de Incidencias
+                    Incidencias Reportadas en Campo
                   </h3>
-                  <p className="text-xs text-slate-400">Seguimiento en tiempo real de reportes de campo</p>
+                  <p className="text-xs text-slate-400">Resolución de daños previos, faltantes y fallas</p>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleExportIncidentsExcel}
+                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Exportar (CSV)
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               {incidents.map((inc) => (
                 <div
                   key={inc.id}
-                  className={`p-5 rounded-2xl border transition-all ${
-                    inc.status === 'resuelto'
-                      ? 'border-slate-100 bg-slate-50/50'
-                      : 'border-orange-200 bg-orange-50/20'
-                  }`}
+                  className="p-5 rounded-2xl border border-orange-100 bg-orange-50/20 space-y-3"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-bold text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      {inc.type.replace('_', ' ')}
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">{inc.date}</span>
-                  </div>
-
-                  <h4 className="font-bold text-slate-900 text-base mb-1">
-                    {inc.title}
-                  </h4>
-                  <p className="text-xs text-slate-500 mb-3 font-medium">
-                    Cliente: <strong className="text-slate-800">{inc.clientName}</strong> • Reporta: {inc.operativeName}
-                  </p>
-                  <p className="text-xs text-slate-700 bg-white p-3 rounded-xl border border-slate-100 mb-3">
-                    {inc.description}
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <button
-                      onClick={() => handleSendIncidentEmail(inc)}
-                      className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Enviar Notificación de Incidencia por Correo"
-                    >
-                      <Mail className="w-3.5 h-3.5" /> Correo
-                    </button>
-                    <button
-                      onClick={() => setSelectedIncidentForReport(inc)}
-                      className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Ver / Imprimir Reporte Técnico PDF"
-                    >
-                      <Printer className="w-3.5 h-3.5" /> Reporte PDF
-                    </button>
-                    {inc.photoUrl && (
-                      <button
-                        onClick={() => setViewingIncident(inc)}
-                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Foto
-                      </button>
-                    )}
-                  </div>
-
-                  {inc.status === 'resuelto' ? (
-                    <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-900">
-                      <span className="font-bold block text-green-950">Resolución emitida:</span>
-                      {inc.adminResolution}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full">
+                        {inc.type.replace('_', ' ')} • Folio #{inc.id}
+                      </span>
+                      <h4 className="font-bold text-slate-900 text-base">{inc.title}</h4>
                     </div>
-                  ) : (
-                    <div>
-                      {resolvingIncId === inc.id ? (
-                        <form onSubmit={handleResolveIncident} className="space-y-2">
-                          <input
-                            type="text"
-                            required
-                            placeholder="Escribe la solución acordada o resolución..."
-                            value={resolutionText}
-                            onChange={(e) => setResolutionText(e.target.value)}
-                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-blue-500"
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              type="button"
-                              onClick={() => setResolvingIncId(null)}
-                              className="px-3 py-1.5 text-xs font-semibold text-slate-500 cursor-pointer"
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              type="submit"
-                              className="px-3.5 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold cursor-pointer"
-                            >
-                              Guardar Solución
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
+                    <span
+                      className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${
+                        inc.status === 'resuelto'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-orange-100 text-orange-800'
+                      }`}
+                    >
+                      {inc.status === 'resuelto' ? 'Resuelto' : 'En Seguimiento'}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600">{inc.description}</p>
+
+                  <div className="p-3 bg-white rounded-xl text-xs text-slate-600 flex flex-wrap justify-between gap-2 border border-slate-100">
+                    <span><strong>Sede:</strong> {inc.clientName} ({inc.location})</span>
+                    <span><strong>Técnico:</strong> {inc.operativeName}</span>
+                    <span><strong>Fecha:</strong> {inc.date} {inc.time}</span>
+                  </div>
+
+                  {inc.adminResolution && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800">
+                      <strong>Resolución Administrativa:</strong> {inc.adminResolution}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-orange-100">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleShareIncidentWhatsApp(inc)}
+                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                      </button>
+                      <button
+                        onClick={() => handleSendIncidentEmail(inc)}
+                        className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Mail className="w-3.5 h-3.5" /> Correo
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedIncidentForReport(inc)}
+                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> Reporte PDF
+                      </button>
+                      {inc.photoUrl && (
+                        <button
+                          onClick={() => setViewingIncident(inc)}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                        >
+                          Ver Foto
+                        </button>
+                      )}
+                      {inc.status !== 'resuelto' && (
                         <button
                           onClick={() => {
                             setResolvingIncId(inc.id);
                             setResolutionText('');
                           }}
-                          className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors cursor-pointer"
+                          className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
                         >
-                          Emitir Resolución
+                          Registrar Solución
                         </button>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -775,46 +1025,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 2. COTIZACIONES Y PROPUESTAS COMERCIALES */}
-      {activeTab === 'cotizaciones_admin' && (
-        <QuotationManager
-          quotations={quotations}
-          onSaveQuotation={onSaveQuotation}
-          onUpdateStatus={onUpdateQuotationStatus}
-        />
-      )}
-
-      {/* 3. GESTIÓN DE INSUMOS E INVENTARIOS */}
+      {/* 2. INSUMOS, ALMACÉN E INVENTARIO CENTRAL */}
       {activeTab === 'insumos_admin' && (
         <div className="space-y-6">
-          {/* Client Supply Requests Approvals */}
-          <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg">
-                    Aprobación y Despacho de Pedidos
-                  </h3>
-                  <p className="text-xs text-slate-400">Requerimientos emitidos por clientes tras ciclo de 3 días</p>
-                </div>
-              </div>
+          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-slate-800">
+                Almacén Central e Inventario
+              </h2>
+              <p className="text-sm text-slate-400 font-medium mt-1">
+                Control de existencias, requerimientos de clientes y pedidos de reabastecimiento
+              </p>
             </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleShareWarehouseWhatsApp}
+                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+              </button>
+              <button
+                onClick={handleSendWarehouseEmail}
+                className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <Mail className="w-3.5 h-3.5" /> Correo
+              </button>
+              <button
+                onClick={handleExportWarehouseExcel}
+                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel (CSV)
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <Printer className="w-3.5 h-3.5" /> Imprimir
+              </button>
+            </div>
+          </div>
+
+          {/* Supply Requests from Clients */}
+          <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
+            <h3 className="font-bold text-slate-800 text-lg">
+              Requerimientos de Insumos Emitidos por Clientes ({supplyRequests.length})
+            </h3>
 
             <div className="space-y-3">
               {supplyRequests.map((req) => (
                 <div
                   key={req.id}
-                  className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-slate-900 text-base">
-                        {req.clientName}
-                      </span>
-                      <span className="text-xs text-slate-400">#{req.id} • {req.requestDate}</span>
+                      <span className="font-bold text-slate-900 text-sm">{req.clientName}</span>
+                      <span className="text-xs text-slate-400">({req.id} • {req.requestDate})</span>
                       <span
                         className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
                           req.status === 'despachado'
@@ -828,38 +1095,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </span>
                     </div>
 
-                    <p className="text-xs md:text-sm text-slate-600 font-medium">
+                    <p className="text-xs text-slate-600 font-medium">
                       {req.items.map((i) => `${i.quantity} ${i.unit} de ${i.supplyName}`).join(' • ')}
                     </p>
-                    {req.notes && (
-                      <p className="text-xs text-slate-400 italic mt-0.5">Nota: {req.notes}</p>
-                    )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2">
                     {req.status === 'pendiente' && (
-                      <>
-                        <button
-                          onClick={() => onApproveSupplyRequest(req.id, 'aprobado')}
-                          className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors cursor-pointer shadow-sm shadow-blue-200"
-                        >
-                          Aprobar Pedido
-                        </button>
-                        <button
-                          onClick={() => onApproveSupplyRequest(req.id, 'rechazado')}
-                          className="px-3.5 py-2 rounded-xl bg-red-50 text-red-600 font-semibold text-xs hover:bg-red-100 transition-colors cursor-pointer"
-                        >
-                          Rechazar
-                        </button>
-                      </>
+                      <button
+                        onClick={() => onApproveSupplyRequest(req.id, 'aprobado')}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        Aprobar Entrega
+                      </button>
                     )}
-
                     {req.status === 'aprobado' && (
                       <button
                         onClick={() => onApproveSupplyRequest(req.id, 'despachado')}
-                        className="px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold cursor-pointer"
                       >
-                        <Truck className="w-3.5 h-3.5 text-blue-400" /> Marcar Despachado
+                        Confirmar Despacho
                       </button>
                     )}
                   </div>
@@ -868,177 +1123,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* Central Inventory Grid */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div>
-                <h3 className="font-bold text-slate-800 text-lg">
-                  Inventario Central y Almacén
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Control de stock actual, entradas por compra y niveles mínimos
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={handleSendWarehouseEmail}
-                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
-                  title="Enviar balance de stock e insumos por correo"
-                >
-                  <Mail className="w-3.5 h-3.5" /> Enviar por Correo
-                </button>
-                <button
-                  onClick={handleExportWarehouseCSV}
-                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
-                  title="Descargar inventario en formato CSV / Excel"
-                >
-                  <Download className="w-3.5 h-3.5" /> Exportar (CSV)
-                </button>
-                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                  {supplies.length} Insumos
-                </span>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3.5 px-6">Insumo</th>
-                    <th className="py-3.5 px-4">Categoría</th>
-                    <th className="py-3.5 px-4 text-center">Stock Actual</th>
-                    <th className="py-3.5 px-4 text-center">Mínimo</th>
-                    <th className="py-3.5 px-4 text-right">Costo Unitario</th>
-                    <th className="py-3.5 px-6 text-center">Ajuste Rápido</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {supplies.map((item) => {
-                    const isLow = item.currentStock <= item.minimumStock;
-
-                    return (
-                      <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-4 px-6 font-semibold text-slate-900">
-                          {item.name}
-                          <span className="block text-xs font-normal text-slate-400">{item.unit}</span>
-                        </td>
-                        <td className="py-4 px-4 capitalize text-slate-500 text-xs font-semibold">
-                          {item.category}
-                        </td>
-                        <td className="py-4 px-4 text-center font-bold">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs ${
-                              isLow ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                            }`}
-                          >
-                            {item.currentStock}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-center text-slate-400 text-xs">
-                          {item.minimumStock}
-                        </td>
-                        <td className="py-4 px-4 text-right font-bold text-slate-800">
-                          ${item.costPerUnit.toFixed(2)}
-                        </td>
-                        <td className="py-4 px-6 text-center">
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              onClick={() => onUpdateSupplyStock(item.id, -1)}
-                              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 flex items-center justify-center text-xs cursor-pointer"
-                              title="Salida (-1)"
-                            >
-                              -1
-                            </button>
-                            <button
-                              onClick={() => onUpdateSupplyStock(item.id, 5)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 font-bold text-white text-xs cursor-pointer"
-                              title="Entrada Compra (+5)"
-                            >
-                              +5
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* 3-Day Cycle Reports Automation Config */}
-          <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg">
-                    Automatización de Reportes (Cada 3 Días)
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Configuración de balance automático para balance de consumos por cliente
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {clients.map((cli) => (
+          {/* Central Stock Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {supplies.map((sup) => {
+              const isLow = sup.currentStock <= sup.minimumStock;
+              return (
                 <div
-                  key={cli.id}
-                  className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col justify-between"
+                  key={sup.id}
+                  className={`bg-white rounded-3xl p-6 border transition-all ${
+                    isLow ? 'border-orange-200 bg-orange-50/20' : 'border-slate-100'
+                  }`}
                 >
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-base">{cli.name}</h4>
-                    <p className="text-xs text-slate-400 mb-4">{cli.contractFrequency}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-200/60">
-                    <span className="text-xs font-semibold text-slate-600">Auto-Generar 3D</span>
-                    <button
-                      onClick={() => onToggleAutoReport(cli.id)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                        cli.auto3DayReport
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-slate-200 text-slate-500'
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {sup.category}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
+                        isLow ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'
                       }`}
                     >
-                      {cli.auto3DayReport ? 'Activo' : 'Pausado'}
+                      {isLow ? 'Stock Crítico' : 'Nivel Óptimo'}
+                    </span>
+                  </div>
+
+                  <h4 className="font-bold text-slate-900 text-base">{sup.name}</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Mínimo sugerido: {sup.minimumStock} {sup.unit}</p>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-2xl font-bold text-slate-900">{sup.currentStock}</span>
+                      <span className="text-xs text-slate-400 font-medium ml-1">{sup.unit}</span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setStockModalSupply(sup);
+                        setStockDelta(10);
+                      }}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+                    >
+                      Ajustar Stock
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* 3. OPERACIÓN GENERAL Y CALENDARIO */}
+      {/* 3. OPERACIÓN Y DIRECTORIO: CLIENTES, PERSONAL Y ASIGNACIONES */}
       {activeTab === 'operacion_admin' && (
         <div className="space-y-6">
-          {/* Quick Action Buttons */}
+          {/* Quick Action Buttons & Exports */}
           <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
             <div>
               <h2 className="text-xl font-bold text-slate-800">Operación y Directorio</h2>
-              <p className="text-xs md:text-sm text-slate-400">Gestión de clientes, personal técnico y asignaciones</p>
+              <p className="text-xs md:text-sm text-slate-400">
+                Gestión de clientes, personal técnico y asignación directa de empleados a sedes
+              </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleShareDirectoryWhatsApp}
+                className="px-3.5 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                title="Compartir asignaciones por WhatsApp"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+              </button>
+
+              <button
+                onClick={handleSendDirectoryEmail}
+                className="px-3.5 py-2.5 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                title="Enviar directorio por correo"
+              >
+                <Mail className="w-3.5 h-3.5" /> Correo
+              </button>
+
+              <button
+                onClick={handleExportDirectoryExcel}
+                className="px-3.5 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                title="Exportar clientes y asignaciones a Excel"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel (CSV)
+              </button>
+
               <button
                 onClick={() => setShowNewServiceModal(true)}
                 className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-lg shadow-slate-200"
               >
                 <Calendar className="w-4 h-4 text-blue-400" /> Programar Servicio
               </button>
+
               <button
                 onClick={() => setShowNewClientModal(true)}
                 className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-md shadow-blue-200"
               >
                 <Building className="w-4 h-4" /> + Cliente
               </button>
+
               <button
                 onClick={() => setShowNewEmployeeModal(true)}
                 className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs md:text-sm flex items-center gap-2 cursor-pointer"
@@ -1048,28 +1233,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* Directory Grids */}
+          {/* Directory Grids: Clients with Employee Assignments */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Clients List */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-              <h3 className="font-bold text-slate-800 text-base md:text-lg mb-4 flex items-center gap-2">
-                <Building className="w-5 h-5 text-blue-600" />
-                Clientes Activos ({clients.length})
-              </h3>
+            {/* Clients List with Assignment Feature */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800 text-base md:text-lg flex items-center gap-2">
+                  <Building className="w-5 h-5 text-blue-600" />
+                  Clientes Activos ({clients.length})
+                </h3>
+                <span className="text-xs text-slate-400 font-medium">Asignaciones directas</span>
+              </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {clients.map((c) => (
-                  <div key={c.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-bold text-slate-900 text-base">{c.name}</h4>
-                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2.5 py-0.5 rounded-full">
+                  <div
+                    key={c.id}
+                    className="p-4.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-all space-y-3 shadow-xs"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-base">{c.name}</h4>
+                        <p className="text-xs text-slate-500">{c.address}</p>
+                      </div>
+                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
                         ${c.monthlyFee.toLocaleString('es-MX')} /mes
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500">{c.address}</p>
-                    <div className="mt-2 text-[11px] text-slate-400 font-medium flex justify-between">
-                      <span>Contacto: {c.contactPerson}</span>
-                      <span>{c.phone}</span>
+
+                    <div className="text-xs text-slate-600 grid grid-cols-2 gap-1 py-1">
+                      <div><strong>Contacto:</strong> {c.contactPerson}</div>
+                      <div><strong>Teléfono:</strong> {c.phone}</div>
+                    </div>
+
+                    {/* ASSIGNED EMPLOYEE BADGE & ACTION */}
+                    <div className="p-3 rounded-xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Técnico Asignado
+                          </p>
+                          <p className="text-xs font-bold text-slate-900">
+                            {c.assignedEmployeeName || 'Sin Asignar'}
+                          </p>
+                          {c.assignedEmployeePhone && (
+                            <p className="text-[11px] text-slate-400 font-medium">
+                              Tel: {c.assignedEmployeePhone}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenAssignModal(c)}
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" /> Asignar Empleado
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1077,28 +1302,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             {/* Employees List */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-              <h3 className="font-bold text-slate-800 text-base md:text-lg mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-green-600" />
-                Personal Operativo ({employees.length})
-              </h3>
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800 text-base md:text-lg flex items-center gap-2">
+                  <Users className="w-5 h-5 text-green-600" />
+                  Personal Operativo ({employees.length})
+                </h3>
+                <span className="text-xs text-slate-400 font-medium">Plantilla Oficial</span>
+              </div>
 
               <div className="space-y-3">
-                {employees.map((emp) => (
-                  <div key={emp.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-bold text-slate-900 text-base">{emp.name}</h4>
-                      <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                        {emp.servicesCompletedThisMonth} Servicios este mes
-                      </span>
+                {employees.map((emp) => {
+                  const assignedClientsCount = clients.filter(
+                    (c) => c.assignedEmployeeId === emp.id || c.assignedEmployeeName === emp.name
+                  ).length;
+
+                  return (
+                    <div key={emp.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-slate-900 text-white font-bold text-sm flex items-center justify-center">
+                            {emp.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-sm md:text-base">{emp.name}</h4>
+                            <p className="text-xs text-slate-500">{emp.role}</p>
+                          </div>
+                        </div>
+
+                        <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full">
+                          {assignedClientsCount} Sedes Asignadas
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-400 font-medium flex justify-between pt-1 border-t border-slate-100">
+                        <span>Zona: {emp.assignedZone}</span>
+                        <span>Tel: {emp.phone}</span>
+                        <span>{emp.servicesCompletedThisMonth} servicios/mes</span>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-500">{emp.role}</p>
-                    <div className="mt-2 text-[11px] text-slate-400 font-medium flex justify-between">
-                      <span>Zona: {emp.assignedZone}</span>
-                      <span>{emp.phone}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1158,72 +1402,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={handleSendFinancesEmail}
-                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
-                  title="Enviar estado financiero y balance por correo"
+                  onClick={handleShareFinancesWhatsApp}
+                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
                 >
-                  <Mail className="w-3.5 h-3.5" /> Enviar por Correo
+                  <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                 </button>
                 <button
-                  onClick={handleExportFinancesCSV}
-                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
-                  title="Descargar libro financiero en formato CSV / Excel"
+                  onClick={handleSendFinancesEmail}
+                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
                 >
-                  <Download className="w-3.5 h-3.5" /> Exportar (CSV)
+                  <Mail className="w-3.5 h-3.5" /> Correo
+                </button>
+                <button
+                  onClick={handleExportFinancesExcel}
+                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Excel (CSV)
                 </button>
                 <button
                   onClick={() => window.print()}
                   className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
                 >
-                  <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
+                  <Printer className="w-3.5 h-3.5" /> Imprimir
                 </button>
                 <button
                   onClick={() => setShowNewFinanceModal(true)}
-                  className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-lg shadow-slate-200"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md shadow-slate-200"
                 >
-                  <Plus className="w-4 h-4" /> Registrar Movimiento
+                  <Plus className="w-3.5 h-3.5" /> + Movimiento
                 </button>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
                   <tr>
-                    <th className="py-3.5 px-6">Fecha</th>
-                    <th className="py-3.5 px-4">Tipo</th>
-                    <th className="py-3.5 px-4">Concepto</th>
-                    <th className="py-3.5 px-4">Cliente / Proveedor</th>
-                    <th className="py-3.5 px-6 text-right">Monto</th>
+                    <th className="p-4">Fecha</th>
+                    <th className="p-4">Tipo</th>
+                    <th className="p-4">Categoría</th>
+                    <th className="p-4">Concepto</th>
+                    <th className="p-4">Cliente / Proveedor</th>
+                    <th className="p-4 text-right">Monto</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
+                <tbody className="divide-y divide-slate-100">
                   {finances.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-4 px-6 text-xs text-slate-400 font-medium">
-                        {tx.date}
-                      </td>
-                      <td className="py-4 px-4">
+                    <tr key={tx.id} className="hover:bg-slate-50/50">
+                      <td className="p-4 text-slate-500">{tx.date}</td>
+                      <td className="p-4">
                         <span
-                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
+                          className={`font-bold px-2.5 py-0.5 rounded-full uppercase text-[10px] ${
                             tx.type === 'ingreso'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
+                              ? 'bg-green-50 text-green-700'
+                              : 'bg-red-50 text-red-700'
                           }`}
                         >
                           {tx.type}
                         </span>
                       </td>
-                      <td className="py-4 px-4 font-semibold text-slate-900">
-                        {tx.concept}
-                      </td>
-                      <td className="py-4 px-4 text-slate-500 text-xs">
-                        {tx.clientOrVendor}
-                      </td>
-                      <td className="py-4 px-6 text-right font-bold text-base">
-                        <span className={tx.type === 'ingreso' ? 'text-green-600' : 'text-red-600'}>
-                          {tx.type === 'ingreso' ? '+' : '-'}${tx.amount.toLocaleString('es-MX')}
-                        </span>
+                      <td className="p-4 text-slate-500 font-medium">{tx.category.replace('_', ' ')}</td>
+                      <td className="p-4 font-bold text-slate-800">{tx.concept}</td>
+                      <td className="p-4 text-slate-500">{tx.entity || '-'}</td>
+                      <td
+                        className={`p-4 text-right font-bold text-sm ${
+                          tx.type === 'ingreso' ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {tx.type === 'ingreso' ? '+' : '-'}${tx.amount.toLocaleString('es-MX')}
                       </td>
                     </tr>
                   ))}
@@ -1234,51 +1480,156 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Modal: New Client */}
+      {/* 5. COTIZACIONES Y PRESUPUESTOS */}
+      {activeTab === 'cotizaciones_admin' && (
+        <QuotationManager
+          quotations={quotations}
+          onSaveQuotation={onSaveQuotation}
+          onUpdateStatus={onUpdateQuotationStatus}
+        />
+      )}
+
+      {/* MODAL: ASIGNAR EMPLEADO A CLIENTE */}
+      {assignModalClient && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">
+                  Asignar Empleado a Cliente
+                </h3>
+                <p className="text-xs text-slate-400 font-medium">
+                  Cliente: <strong className="text-slate-700">{assignModalClient.name}</strong>
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmAssignment} className="space-y-4 mt-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">
+                  Selecciona el Técnico que atenderá esta sede:
+                </label>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {employees.map((emp) => {
+                    const isSelected = selectedEmpForAssign === emp.id;
+                    return (
+                      <div
+                        key={`assign-emp-${emp.id}`}
+                        onClick={() => setSelectedEmpForAssign(emp.id)}
+                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/50 shadow-xs'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-xl font-bold text-sm flex items-center justify-center ${
+                              isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {emp.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-sm">{emp.name}</h4>
+                            <p className="text-xs text-slate-400">
+                              {emp.role} • {emp.assignedZone} • Tel: {emp.phone}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setAssignModalClient(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold cursor-pointer shadow-md shadow-blue-200 transition-all flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Guardar Asignación
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: NUEVO CLIENTE */}
       {showNewClientModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-1">Alta de Cliente</h3>
-            <p className="text-xs text-slate-400 mb-5">Ingresa la información comercial del cliente</p>
-            <form onSubmit={handleCreateClient} className="space-y-4">
+            <h3 className="text-xl font-bold text-slate-800 mb-1">Registrar Nuevo Cliente</h3>
+            <p className="text-xs text-slate-400 mb-4">Ingresa los datos para la póliza de servicio</p>
+
+            <form onSubmit={handleCreateClient} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre / Razón Social:</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Corporativo Insurgentes"
+                  placeholder="Ej. Corporativo Santa Fe"
                   value={newClientName}
                   onChange={(e) => setNewClientName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Persona de Contacto:</label>
                 <input
                   type="text"
-                  placeholder="Ej. Lic. Ana Morales"
+                  placeholder="Ej. Lic. Laura Méndez"
                   value={newClientContact}
                   onChange={(e) => setNewClientContact(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Dirección de Sede:</label>
                 <input
                   type="text"
-                  placeholder="Ej. Av. Insurgentes 1200"
+                  placeholder="Ej. Av. Reforma 500, Piso 14"
                   value={newClientAddress}
                   onChange={(e) => setNewClientAddress(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Póliza Mensual (MXN):</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Técnico Operativo Asignado:</label>
+                <select
+                  value={newClientAssignedEmp}
+                  onChange={(e) => setNewClientAssignedEmp(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500 bg-white font-medium"
+                >
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Cuota Mensual (MXN):</label>
                 <input
                   type="number"
                   value={newClientFee}
                   onChange={(e) => setNewClientFee(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-3">
@@ -1291,9 +1642,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-xs font-semibold cursor-pointer shadow-md shadow-blue-200"
+                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-blue-200"
                 >
-                  Guardar Cliente
+                  Registrar Cliente
                 </button>
               </div>
             </form>
@@ -1301,31 +1652,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Modal: New Employee */}
+      {/* MODAL: NUEVO EMPLEADO */}
       {showNewEmployeeModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-1">Alta de Empleado</h3>
-            <p className="text-xs text-slate-400 mb-5">Registra nuevo personal técnico operativo</p>
-            <form onSubmit={handleCreateEmployee} className="space-y-4">
+            <h3 className="text-xl font-bold text-slate-800 mb-1">Registrar Nuevo Empleado</h3>
+            <p className="text-xs text-slate-400 mb-4">Personal técnico y operativo de campo</p>
+
+            <form onSubmit={handleCreateEmployee} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre Completo:</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Rodrigo Vargas"
+                  placeholder="Ej. Roberto Sánchez"
                   value={newEmpName}
                   onChange={(e) => setNewEmpName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Cargo / Especialidad:</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Puesto / Especialidad:</label>
                 <input
                   type="text"
                   value={newEmpRole}
                   onChange={(e) => setNewEmpRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono:</label>
+                <input
+                  type="text"
+                  value={newEmpPhone}
+                  onChange={(e) => setNewEmpPhone(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div>
@@ -1334,7 +1695,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   type="text"
                   value={newEmpZone}
                   onChange={(e) => setNewEmpZone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-3">
@@ -1347,9 +1708,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-xs font-semibold cursor-pointer"
+                  className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-slate-200"
                 >
-                  Guardar Empleado
+                  Registrar Empleado
                 </button>
               </div>
             </form>
@@ -1357,45 +1718,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Modal: New Service */}
+      {/* MODAL: PROGRAMAR SERVICIO */}
       {showNewServiceModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-1">Programar Servicio</h3>
-            <p className="text-xs text-slate-400 mb-5">Asigna fecha, cliente y operativo responsable</p>
-            <form onSubmit={handleCreateService} className="space-y-4">
+            <h3 className="text-xl font-bold text-slate-800 mb-1">Programar Nuevo Servicio</h3>
+            <p className="text-xs text-slate-400 mb-4">Agenda un turno de limpieza para un cliente</p>
+
+            <form onSubmit={handleCreateService} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Cliente:</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Cliente / Sede:</label>
                 <select
                   value={srvClientName}
                   onChange={(e) => setSrvClientName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500 bg-white"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-blue-500"
                 >
                   {clients.map((c) => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Personal Asignado:</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Técnico Operativo:</label>
                 <select
                   value={srvOperativeName}
                   onChange={(e) => setSrvOperativeName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500 bg-white"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-blue-500"
                 >
-                  {employees.map((em) => (
-                    <option key={em.id} value={em.name}>{em.name} ({em.role})</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.name}>
+                      {emp.name} ({emp.role})
+                    </option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Fecha:</label>
                   <input
                     type="date"
                     value={srvDate}
                     onChange={(e) => setSrvDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-blue-500 bg-white"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                   />
                 </div>
                 <div>
@@ -1404,18 +1770,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="text"
                     value={srvTimeSlot}
                     onChange={(e) => setSrvTimeSlot(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-blue-500 bg-white"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Instrucciones especiales:</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Notas especiales:</label>
                 <input
                   type="text"
-                  placeholder="Ej. Uso de químicos desinfectantes de grado médico"
+                  placeholder="Ej. Desinfección profunda de salas de juntas"
                   value={srvNotes}
                   onChange={(e) => setSrvNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-3">
@@ -1428,9 +1794,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-xs font-semibold cursor-pointer shadow-lg shadow-slate-200"
+                  className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-slate-200"
                 >
-                  Confirmar Programación
+                  Programar Turno
                 </button>
               </div>
             </form>
@@ -1438,19 +1804,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Modal: New Finance Transaction */}
+      {/* MODAL: REGISTRAR MOVIMIENTO FINANCIERO */}
       {showNewFinanceModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-1">Registrar Movimiento</h3>
-            <p className="text-xs text-slate-400 mb-5">Ingreso de cobro o egreso de operación</p>
-            <form onSubmit={handleCreateFinance} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            <h3 className="text-xl font-bold text-slate-800 mb-1">Registrar Movimiento Financiero</h3>
+            <p className="text-xs text-slate-400 mb-4">Ingreso o egreso en el libro mayor</p>
+
+            <form onSubmit={handleCreateFinance} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setTxType('ingreso')}
                   className={`py-2.5 rounded-2xl text-xs font-semibold border transition-all cursor-pointer ${
-                    txType === 'ingreso' ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'
+                    txType === 'ingreso'
+                      ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200'
                   }`}
                 >
                   + Ingreso (Cobro)
@@ -1459,7 +1828,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   type="button"
                   onClick={() => setTxType('gasto')}
                   className={`py-2.5 rounded-2xl text-xs font-semibold border transition-all cursor-pointer ${
-                    txType === 'gasto' ? 'bg-red-600 text-white border-red-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'
+                    txType === 'gasto'
+                      ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200'
                   }`}
                 >
                   - Gasto (Egreso)
@@ -1516,13 +1887,86 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 5. COTIZACIONES Y PRESUPUESTOS (NUEVO MÓDULO) */}
-      {activeTab === 'cotizaciones_admin' && (
-        <QuotationManager
-          quotations={quotations}
-          onSaveQuotation={onSaveQuotation}
-          onUpdateStatus={onUpdateQuotationStatus}
-        />
+      {/* MODAL: AJUSTE DE STOCK */}
+      {stockModalSupply && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Ajustar Stock de Insumo</h3>
+            <p className="text-xs text-slate-500 mb-4">{stockModalSupply.name}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Cantidad a ingresar (+):</label>
+                <input
+                  type="number"
+                  value={stockDelta}
+                  onChange={(e) => setStockDelta(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:outline-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStockModalSupply(null)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-500 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateSupplyStock(stockModalSupply.id, stockDelta);
+                    setStockModalSupply(null);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Actualizar Stock
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RESOLVER INCIDENCIA */}
+      {resolvingIncId && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
+            <h3 className="text-xl font-bold text-slate-800 mb-1">Registrar Solución a Incidencia</h3>
+            <p className="text-xs text-slate-400 mb-4">Folio: #{resolvingIncId}</p>
+
+            <form onSubmit={handleResolveIncident} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Acción tomada / Resolución:</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Ej. Se envió técnico especializado y se reparó la cerradura con autorización del cliente."
+                  value={resolutionText}
+                  onChange={(e) => setResolutionText(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setResolvingIncId(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-green-600 text-white rounded-2xl text-xs font-bold cursor-pointer shadow-md shadow-green-200"
+                >
+                  Marcar como Resuelto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Image Viewer Modals */}
@@ -1548,10 +1992,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         />
       )}
 
-      {/* Email Sender Modal */}
+      {/* Email / WhatsApp Share Modal */}
       {emailModalData && (
         <EmailSenderModal
           modalData={emailModalData}
+          isOpen={!!emailModalData}
           onClose={() => setEmailModalData(null)}
         />
       )}

@@ -336,6 +336,44 @@ export default function App() {
     );
   };
 
+  const handleAssignEmployeeToClient = (clientId: string, employeeId: string) => {
+    const employee = employees.find((e) => e.id === employeeId);
+    if (!employee) return;
+
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? {
+              ...c,
+              assignedEmployeeId: employee.id,
+              assignedEmployeeName: employee.name,
+              assignedEmployeePhone: employee.phone,
+              assignedEmployeeRole: employee.role
+            }
+          : c
+      )
+    );
+
+    // Also update any scheduled services for this client
+    const targetClient = clients.find((c) => c.id === clientId);
+    if (targetClient) {
+      setServices((prev) =>
+        prev.map((s) => {
+          if (s.clientName.includes(targetClient.name) || targetClient.name.includes(s.clientName)) {
+            if (s.status === 'programado' || s.status === 'en_proceso') {
+              return {
+                ...s,
+                operativeId: employee.id,
+                operativeName: employee.name
+              };
+            }
+          }
+          return s;
+        })
+      );
+    }
+  };
+
   // Define Navigation Items based on Current Active Role
   const getNavItems = (): NavItem[] => {
     switch (currentRole) {
@@ -369,6 +407,11 @@ export default function App() {
   const activeNavItem = navItems.find((item) => item.id === activeTab);
   const activeModuleName = activeNavItem?.name || 'Panel de Control';
 
+  const currentClientProfile = clients.find((c) => c.name.includes('SkyTower')) || clients[0];
+  const assignedEmp = employees.find(
+    (e) => e.id === currentClientProfile?.assignedEmployeeId || e.name === currentClientProfile?.assignedEmployeeName
+  ) || employees[0];
+
   // If on Home role selection screen
   if (currentRole === 'home') {
     return <RoleSelectorHome onSelectRole={handleSelectRole} />;
@@ -394,6 +437,7 @@ export default function App() {
           onLogout={handleLogout}
           clientName="Oficinas SkyTower"
           operativeName="Carlos Mendoza"
+          onSwitchRole={handleSelectRole}
         />
 
         {/* Dynamic Role Views */}
@@ -428,6 +472,8 @@ export default function App() {
               cycleReports={cycleReports}
               supplyRequests={supplyRequests}
               clientName="Oficinas Corporativas SkyTower"
+              clientProfile={currentClientProfile}
+              assignedEmployee={assignedEmp}
               onEmitSupplyRequest={handleEmitSupplyRequest}
             />
           )}
@@ -455,6 +501,7 @@ export default function App() {
               onToggleAutoReport={handleToggleAutoReport}
               onSaveQuotation={handleSaveQuotation}
               onUpdateQuotationStatus={handleUpdateQuotationStatus}
+              onAssignEmployeeToClient={handleAssignEmployeeToClient}
             />
           )}
         </main>

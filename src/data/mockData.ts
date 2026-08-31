@@ -253,7 +253,11 @@ export const INITIAL_CLIENTS: ClientProfile[] = [
     address: 'Av. Reforma #450, Piso 8, CDMX',
     contractFrequency: 'Lunes, Miércoles, Viernes',
     auto3DayReport: true,
-    monthlyFee: 14500
+    monthlyFee: 14500,
+    assignedEmployeeId: 'EMP-01',
+    assignedEmployeeName: 'Carlos Mendoza',
+    assignedEmployeePhone: '+52 55 6789 0123',
+    assignedEmployeeRole: 'Técnico Especialista de Limpieza'
   },
   {
     id: 'CLI-02',
@@ -264,7 +268,11 @@ export const INITIAL_CLIENTS: ClientProfile[] = [
     address: 'Av. Insurgentes Sur #890, Col. del Valle',
     contractFrequency: 'Diario (Lunes a Sábado)',
     auto3DayReport: true,
-    monthlyFee: 18200
+    monthlyFee: 18200,
+    assignedEmployeeId: 'EMP-01',
+    assignedEmployeeName: 'Carlos Mendoza',
+    assignedEmployeePhone: '+52 55 6789 0123',
+    assignedEmployeeRole: 'Técnico Especialista de Limpieza'
   },
   {
     id: 'CLI-03',
@@ -275,7 +283,11 @@ export const INITIAL_CLIENTS: ClientProfile[] = [
     address: 'Calle Durango #310, Roma Norte',
     contractFrequency: 'Martes, Jueves, Sábado',
     auto3DayReport: true,
-    monthlyFee: 11800
+    monthlyFee: 11800,
+    assignedEmployeeId: 'EMP-02',
+    assignedEmployeeName: 'Lucía Santos',
+    assignedEmployeePhone: '+52 55 4567 8901',
+    assignedEmployeeRole: 'Operativa Senior de Sanitización'
   },
   {
     id: 'CLI-04',
@@ -286,7 +298,11 @@ export const INITIAL_CLIENTS: ClientProfile[] = [
     address: 'Calle Nogales #122, Polanco',
     contractFrequency: 'Servicio por evento / Semanal',
     auto3DayReport: false,
-    monthlyFee: 5600
+    monthlyFee: 5600,
+    assignedEmployeeId: 'EMP-03',
+    assignedEmployeeName: 'Miguel Ángel Rivas',
+    assignedEmployeePhone: '+52 55 8901 2345',
+    assignedEmployeeRole: 'Operativo de Maquinaria y Pulido'
   }
 ];
 
