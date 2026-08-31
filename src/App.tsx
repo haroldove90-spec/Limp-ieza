@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UserRole,
   CleaningService,
@@ -27,6 +27,8 @@ import {
   INITIAL_WAREHOUSE_MOVEMENTS,
   INITIAL_QUOTATIONS
 } from './data/mockData';
+import { supabaseService } from './services/supabaseService';
+import { SupabaseModal } from './components/common/SupabaseModal';
 
 import { RoleSelectorHome } from './components/common/RoleSelectorHome';
 import { Header } from './components/layout/Header';
@@ -51,9 +53,10 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // Application role & navigation state (in-memory only, no localStorage saving)
+  // Application role & navigation state
   const [currentRole, setCurrentRole] = useState<UserRole>('home');
   const [activeTab, setActiveTab] = useState<string>('agenda');
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
 
   // In-memory application data state
   const [services, setServices] = useState<CleaningService[]>(INITIAL_SERVICES);
@@ -67,6 +70,30 @@ export default function App() {
   const [employees, setEmployees] = useState<EmployeeProfile[]>(INITIAL_EMPLOYEES);
   const [finances, setFinances] = useState<TransactionRecord[]>(INITIAL_FINANCES);
   const [quotations, setQuotations] = useState<Quotation[]>(INITIAL_QUOTATIONS);
+
+  // Fetch Supabase data if tables exist
+  const loadDataFromSupabase = async () => {
+    try {
+      const data = await supabaseService.fetchAll();
+      if (data.clients && data.clients.length > 0) setClients(data.clients);
+      if (data.employees && data.employees.length > 0) setEmployees(data.employees);
+      if (data.services && data.services.length > 0) setServices(data.services);
+      if (data.incidents && data.incidents.length > 0) setIncidents(data.incidents);
+      if (data.supplies && data.supplies.length > 0) setSupplies(data.supplies);
+      if (data.kitItems && data.kitItems.length > 0) setKitItems(data.kitItems);
+      if (data.warehouseMovements && data.warehouseMovements.length > 0) setWarehouseMovements(data.warehouseMovements);
+      if (data.cycleReports && data.cycleReports.length > 0) setCycleReports(data.cycleReports);
+      if (data.supplyRequests && data.supplyRequests.length > 0) setSupplyRequests(data.supplyRequests);
+      if (data.finances && data.finances.length > 0) setFinances(data.finances);
+      if (data.quotations && data.quotations.length > 0) setQuotations(data.quotations);
+    } catch {
+      // Keep local state on error
+    }
+  };
+
+  useEffect(() => {
+    loadDataFromSupabase();
+  }, []);
 
   // Role switching
   const handleSelectRole = (role: UserRole) => {
@@ -414,7 +441,19 @@ export default function App() {
 
   // If on Home role selection screen
   if (currentRole === 'home') {
-    return <RoleSelectorHome onSelectRole={handleSelectRole} />;
+    return (
+      <>
+        <RoleSelectorHome
+          onSelectRole={handleSelectRole}
+          onOpenSupabase={() => setIsSupabaseModalOpen(true)}
+        />
+        <SupabaseModal
+          isOpen={isSupabaseModalOpen}
+          onClose={() => setIsSupabaseModalOpen(false)}
+          onDataSync={loadDataFromSupabase}
+        />
+      </>
+    );
   }
 
   return (
@@ -437,7 +476,8 @@ export default function App() {
           onLogout={handleLogout}
           clientName="Oficinas SkyTower"
           operativeName="Carlos Mendoza"
-          onSwitchRole={handleSelectRole}
+          onSelectRole={handleSelectRole}
+          onOpenSupabase={() => setIsSupabaseModalOpen(true)}
         />
 
         {/* Dynamic Role Views */}
@@ -513,6 +553,14 @@ export default function App() {
           onTabChange={setActiveTab}
         />
       </div>
+
+      {/* Supabase SQL & Connection Manager Modal */}
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onDataSync={loadDataFromSupabase}
+      />
     </div>
   );
 }
+

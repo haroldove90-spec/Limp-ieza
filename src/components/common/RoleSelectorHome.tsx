@@ -1,12 +1,13 @@
 import React from 'react';
 import { UserRole } from '../../types';
-import { Sparkles, HardHat, Building2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Sparkles, HardHat, Building2, ShieldCheck, ArrowRight, Database } from 'lucide-react';
 
 interface RoleSelectorHomeProps {
   onSelectRole: (role: UserRole) => void;
+  onOpenSupabase?: () => void;
 }
 
-export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole }) => {
+export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole, onOpenSupabase }) => {
   const roles = [
     {
       id: 'operative' as UserRole,
@@ -44,13 +45,26 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-between p-6 md:p-12">
       {/* Brand Header */}
       <header className="max-w-5xl mx-auto w-full pt-4 md:pt-8 text-center">
-        <div className="inline-flex items-center gap-3 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-200/80 mb-6">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
-            <Sparkles className="w-4 h-4" />
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="inline-flex items-center gap-3 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-200/80">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-slate-800 text-xs md:text-sm tracking-tight uppercase">
+              Gestión de Limpieza
+            </span>
           </div>
-          <span className="font-bold text-slate-800 text-xs md:text-sm tracking-tight uppercase">
-            Gestión de Limpieza
-          </span>
+
+          {onOpenSupabase && (
+            <button
+              onClick={onOpenSupabase}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 shadow-xs text-xs font-bold cursor-pointer transition-all"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Supabase Conectado</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            </button>
+          )}
         </div>
 
         <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
@@ -109,9 +123,18 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
       </main>
 
       {/* Minimal Footer */}
-      <footer className="max-w-5xl mx-auto w-full pb-4 text-center text-xs md:text-sm text-slate-400 font-medium">
+      <footer className="max-w-5xl mx-auto w-full pb-4 text-center text-xs md:text-sm text-slate-400 font-medium flex items-center justify-center gap-4">
         <span>Plataforma Operativa de Supervisión, Insumos y Control de Calidad</span>
+        {onOpenSupabase && (
+          <button
+            onClick={onOpenSupabase}
+            className="text-xs text-emerald-700 hover:text-emerald-800 font-bold underline cursor-pointer"
+          >
+            Ver Script SQL & Conexión Supabase
+          </button>
+        )}
       </footer>
     </div>
   );
 };
+

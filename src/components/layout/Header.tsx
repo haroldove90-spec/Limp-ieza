@@ -1,12 +1,13 @@
 import React from 'react';
 import { UserRole } from '../../types';
-import { Sparkles, LogOut, HardHat, Building2, ShieldCheck, User, ChevronDown } from 'lucide-react';
+import { Sparkles, LogOut, HardHat, Building2, ShieldCheck, User, ChevronDown, Database } from 'lucide-react';
 
 interface HeaderProps {
   currentRole: UserRole;
   activeModuleName: string;
   onLogout: () => void;
   onSelectRole?: (role: UserRole) => void;
+  onOpenSupabase?: () => void;
   clientName?: string;
   operativeName?: string;
 }
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeModuleName,
   onLogout,
   onSelectRole,
+  onOpenSupabase,
   clientName,
   operativeName
 }) => {
@@ -84,8 +86,20 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Quick Role Switcher & User Profile */}
+      {/* Right: Supabase Button, Quick Role Switcher & User Profile */}
       <div className="flex items-center gap-2 sm:gap-4">
+        {onOpenSupabase && (
+          <button
+            onClick={onOpenSupabase}
+            title="Estado y Configuración de Supabase"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-xs cursor-pointer transition-all shadow-xs"
+          >
+            <Database className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden md:inline">Supabase</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </button>
+        )}
+
         {onSelectRole && (
           <div className="hidden lg:flex items-center bg-slate-100/80 p-1 rounded-2xl border border-slate-200/80 text-xs">
             <button
@@ -148,3 +162,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+
