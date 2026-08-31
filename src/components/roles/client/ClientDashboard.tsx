@@ -36,6 +36,7 @@ import {
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
+import { COMPANY_BRAND } from '../../../constants/branding';
 import {
   exportToExcel,
   exportToHTMLPDF,
@@ -137,7 +138,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     const today = new Date().toISOString().split('T')[0];
     const completed = clientServices.filter((s) => s.status === 'completado').length;
     const text =
-      `🏢 *REPORTE DE SERVICIOS Y CALIDAD - CLEANPRO*\n` +
+      `🏢 *REPORTE DE SERVICIOS Y CALIDAD - ${COMPANY_BRAND.name.toUpperCase()}*\n` +
       `📍 *Cliente / Sede:* ${clientName}\n` +
       `📅 *Fecha:* ${today}\n` +
       `📊 *Resumen:* ${completed} de ${clientServices.length} servicios completados\n` +
@@ -149,7 +150,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             `• ${s.date} (${s.timeSlot}) - *${s.status.toUpperCase()}*\n  Técnico: ${s.operativeName} | ${s.evidences.length} fotos de evidencia`
         )
         .join('\n\n') +
-      `\n\n✨ *Gestión y Transparencia Operativa CleanPro*`;
+      `\n\n✨ *Gestión y Transparencia Operativa ${COMPANY_BRAND.name}*`;
 
     shareViaWhatsApp(text);
   };
@@ -175,7 +176,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             ` - ${s.date} (${s.timeSlot}) | Operador: ${s.operativeName} | Estado: ${s.status.toUpperCase()} (${s.evidences.length} evidencias)`
         )
         .join('\n') +
-      `\n\nAtentamente,\nPortal de Transparencia CleanPro Servicios Integrales`;
+      `\n\nAtentamente,\nPortal de Transparencia ${COMPANY_BRAND.name}`;
 
     setEmailModalData({
       title: 'Compartir Reporte de Servicios',
@@ -197,8 +198,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   <title>Reporte de Servicios y Calidad - ${clientName}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 35px; color: #0f172a; }
-    .header { border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; }
-    .title { font-size: 24px; font-weight: 800; color: #2563eb; }
+    .header { border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .brand-box { display: flex; align-items: center; gap: 14px; }
+    .brand-logo { width: 50px; height: 50px; object-fit: contain; }
+    .title { font-size: 22px; font-weight: 800; color: #0f172a; }
     .badge { background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px; }
     .service-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 15px; background: #f8fafc; }
     .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
@@ -207,9 +210,12 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 </head>
 <body>
   <div class="header">
-    <div>
-      <div class="title">CleanPro Servicios Integrales</div>
-      <div style="color: #64748b; font-size: 14px;">Reporte Ejecutivo de Servicios y Evidencias de Calidad</div>
+    <div class="brand-box">
+      <img src="${COMPANY_BRAND.logoUrl}" alt="${COMPANY_BRAND.name}" class="brand-logo" />
+      <div>
+        <div class="title">${COMPANY_BRAND.legalName}</div>
+        <div style="color: #64748b; font-size: 13px;">Reporte Ejecutivo de Servicios y Evidencias de Calidad</div>
+      </div>
     </div>
     <div style="text-align: right;">
       <div style="font-weight: bold;">${clientName}</div>
@@ -267,7 +273,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     if (!currentReport) return;
     const period = (currentReport as any).period || `${currentReport.periodStart} al ${currentReport.periodEnd}`;
     const text =
-      `📦 *BALANCE DE CONSUMO DE INSUMOS (3 DÍAS)*\n` +
+      `📦 *BALANCE DE CONSUMO DE INSUMOS (3 DÍAS) - ${COMPANY_BRAND.name.toUpperCase()}*\n` +
       `📍 *Cliente:* ${clientName}\n` +
       `🗓️ *Período:* ${period}\n` +
       `👮 *Auditor:* ${(currentReport as any).supervisorName || 'Ing. Marco Valdés'}\n\n` +
@@ -278,7 +284,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             `• *${i.supplyName}*\n  Existencia: ${(i as any).remainingStock ?? 0} ${i.unit} | 🛒 Pedido sugerido: *${(i as any).recommendedOrder ?? 0} ${i.unit}*`
         )
         .join('\n\n') +
-      `\n\n💬 *Portal de Suministros CleanPro*`;
+      `\n\n💬 *Portal de Suministros ${COMPANY_BRAND.name}*`;
 
     shareViaWhatsApp(text);
   };
@@ -300,7 +306,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             ` - ${i.supplyName}: Restante ${(i as any).remainingStock ?? 0} ${i.unit} (Sugerencia pedido: ${(i as any).recommendedOrder ?? 0} ${i.unit})`
         )
         .join('\n') +
-      `\n\nAtentamente,\nPortal de Gestión de Insumos CleanPro`;
+      `\n\nAtentamente,\nPortal de Gestión de Insumos ${COMPANY_BRAND.name}`;
 
     setEmailModalData({
       title: 'Enviar Informe de Insumos (3 Días)',
@@ -322,8 +328,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   <title>Informe de Consumo de Insumos - ${period}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 35px; color: #0f172a; }
-    .header { border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; }
-    .title { font-size: 22px; font-weight: 800; color: #2563eb; }
+    .header { border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .brand-box { display: flex; align-items: center; gap: 14px; }
+    .brand-logo { width: 50px; height: 50px; object-fit: contain; }
+    .title { font-size: 22px; font-weight: 800; color: #0f172a; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
     th { background: #f1f5f9; padding: 10px; text-align: left; border-bottom: 2px solid #cbd5e1; }
     td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; }
@@ -331,9 +339,12 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 </head>
 <body>
   <div class="header">
-    <div>
-      <div class="title">CleanPro Servicios Integrales</div>
-      <div style="color: #64748b; font-size: 13px;">Informe de Consumo y Monitoreo de Insumos (Ciclo de 3 Días)</div>
+    <div class="brand-box">
+      <img src="${COMPANY_BRAND.logoUrl}" alt="${COMPANY_BRAND.name}" class="brand-logo" />
+      <div>
+        <div class="title">${COMPANY_BRAND.legalName}</div>
+        <div style="color: #64748b; font-size: 13px;">Informe de Consumo y Monitoreo de Insumos (Ciclo de 3 Días)</div>
+      </div>
     </div>
     <div style="text-align: right;">
       <div style="font-weight: bold;">${clientName}</div>

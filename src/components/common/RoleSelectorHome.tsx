@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserRole } from '../../types';
 import { Sparkles, HardHat, Building2, ShieldCheck, ArrowRight, Database } from 'lucide-react';
+import { COMPANY_BRAND } from '../../constants/branding';
 
 interface RoleSelectorHomeProps {
   onSelectRole: (role: UserRole) => void;
@@ -45,20 +46,12 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-between p-6 md:p-12">
       {/* Brand Header */}
       <header className="max-w-5xl mx-auto w-full pt-4 md:pt-8 text-center">
+        {/* Top Controls & Status */}
         <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="inline-flex items-center gap-3 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-200/80">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <span className="font-bold text-slate-800 text-xs md:text-sm tracking-tight uppercase">
-              Gestión de Limpieza
-            </span>
-          </div>
-
           {onOpenSupabase && (
             <button
               onClick={onOpenSupabase}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 shadow-xs text-xs font-bold cursor-pointer transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 shadow-xs text-xs font-bold cursor-pointer transition-all"
             >
               <Database className="w-3.5 h-3.5 text-emerald-600" />
               <span>Supabase Conectado</span>
@@ -67,8 +60,20 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
           )}
         </div>
 
+        {/* Large Prominent Logo Container */}
+        <div className="flex items-center justify-center mb-6">
+          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-3xl p-3 border border-slate-200/80 shadow-md flex items-center justify-center overflow-hidden transition-transform hover:scale-105">
+            <img
+              src={COMPANY_BRAND.logoUrl}
+              alt={COMPANY_BRAND.name}
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        </div>
+
         <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
-          Gestión de negocio Limpieza
+          {COMPANY_BRAND.name}
         </h1>
         <p className="text-slate-500 text-base md:text-lg mt-3 font-normal max-w-xl mx-auto">
           Selecciona tu rol para acceder a la plataforma centralizada

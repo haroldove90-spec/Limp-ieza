@@ -19,13 +19,30 @@ import {
   FileText,
   Printer,
   Download,
-  Mail
+  Mail,
+  MessageSquare,
+  FileSignature,
+  User,
+  ExternalLink
 } from 'lucide-react';
-import { CleaningService, IncidentReport, KitItem, PhotoEvidence, SupplyItem, WarehouseMovement } from '../../../types';
+import {
+  CleaningService,
+  IncidentReport,
+  KitItem,
+  PhotoEvidence,
+  SupplyItem,
+  WarehouseMovement,
+  ClientProfile,
+  EmployeeProfile
+} from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { WarehouseOperativeModule } from './WarehouseOperativeModule';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
+import { ClientSignatureModal } from '../../common/ClientSignatureModal';
+import { COMPANY_BRAND } from '../../../constants/branding';
+import { exportToHTMLPDF, shareViaWhatsApp } from '../../../utils/exportUtils';
+import { generateServiceOrderHTML, buildServiceOrderWhatsAppMessage } from '../../../utils/serviceOrderUtils';
 
 interface OperativeDashboardProps {
   activeTab: string;
@@ -35,6 +52,10 @@ interface OperativeDashboardProps {
   supplies: SupplyItem[];
   movements: WarehouseMovement[];
   operativeName?: string;
+  employees?: EmployeeProfile[];
+  clients?: ClientProfile[];
+  selectedOperativeId?: string;
+  onSelectOperative?: (empId: string) => void;
   onUpdateServiceStatus: (serviceId: string, status: CleaningService['status']) => void;
   onToggleTask: (serviceId: string, taskId: string) => void;
   onAddEvidence: (serviceId: string, evidence: Omit<PhotoEvidence, 'id' | 'timestamp'>) => void;
@@ -45,6 +66,15 @@ interface OperativeDashboardProps {
   onEditWarehouseMovement: (movement: WarehouseMovement) => void;
   onDeleteWarehouseMovement: (movementId: string) => void;
   onAdjustSupplyStock: (supplyId: string, newStock: number) => void;
+  onSaveClientSignature?: (
+    serviceId: string,
+    signature: {
+      signedBy: string;
+      signatureDataUrl: string;
+      signedAt: string;
+      comments?: string;
+    }
+  ) => void;
 }
 
 export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
@@ -55,6 +85,10 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   supplies,
   movements,
   operativeName = 'Carlos Mendoza',
+  employees = [],
+  clients = [],
+  selectedOperativeId,
+  onSelectOperative,
   onUpdateServiceStatus,
   onToggleTask,
   onAddEvidence,
@@ -64,13 +98,15 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   onAddWarehouseMovement,
   onEditWarehouseMovement,
   onDeleteWarehouseMovement,
-  onAdjustSupplyStock
+  onAdjustSupplyStock,
+  onSaveClientSignature
 }) => {
   const [selectedServiceId, setSelectedServiceId] = useState<string>(services[0]?.id || '');
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
   const [selectedIncidentForReport, setSelectedIncidentForReport] = useState<IncidentReport | null>(null);
   const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
 
   // New Evidence Form State
   const [newArea, setNewArea] = useState('');
@@ -102,11 +138,11 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
       `• Fecha / Hora: ${inc.date} a las ${inc.time} hrs\n` +
       `• Técnico en Sitio: ${inc.operativeName}\n\n` +
       `DESCRIPCIÓN:\n${inc.description}\n\n` +
-      `Atentamente,\nEquipo Operativo CleanPro Servicios Integrales`;
+      `Atentamente,\nEquipo Operativo ${COMPANY_BRAND.legalName}`;
 
     setEmailModalData({
       title: 'Enviar Notificación de Incidencia por Correo',
-      defaultRecipient: 'supervision@cleanproservicios.com',
+      defaultRecipient: COMPANY_BRAND.email,
       defaultSubject: subject,
       defaultBody: body,
       reportType: 'Incidencia Operativa',
@@ -179,17 +215,36 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
       {/* 1. AGENDA Y ASIGNACIONES */}
       {activeTab === 'agenda' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm">
             <div>
               <h2 className="text-xl md:text-2xl font-bold text-slate-800">
                 Servicios del Día
               </h2>
               <p className="text-sm text-slate-400 font-medium mt-1">
-                Hoy: 23 de Agosto, 2026 • 3 Asignaciones programadas
+                Técnico Activo: <strong className="text-slate-700">{operativeName}</strong> • {services.length} Servicios en plataforma
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="px-4 py-2 bg-green-50 text-green-700 rounded-2xl text-xs md:text-sm font-semibold flex items-center gap-2">
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {employees.length > 0 && onSelectOperative && (
+                <div className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-2xl transition-all">
+                  <User className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold text-slate-500">Técnico:</span>
+                  <select
+                    value={selectedOperativeId || employees[0]?.id}
+                    onChange={(e) => onSelectOperative(e.target.value)}
+                    className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+                  >
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} ({emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <span className="px-4 py-2 bg-green-50 text-green-700 rounded-2xl text-xs font-semibold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                 Turno en Curso
               </span>
@@ -237,13 +292,32 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                       {service.clientName}
                     </h3>
 
-                    <p className="text-xs md:text-sm text-slate-400 font-medium flex items-start gap-1.5 mt-2">
-                      <MapPin className="w-4 h-4 shrink-0 text-slate-400 mt-0.5" />
-                      <span>{service.clientAddress}</span>
-                    </p>
+                    <div className="mt-2 flex items-start justify-between gap-2">
+                      <p className="text-xs md:text-sm text-slate-400 font-medium flex items-start gap-1.5">
+                        <MapPin className="w-4 h-4 shrink-0 text-slate-400 mt-0.5" />
+                        <span>{service.clientAddress}</span>
+                      </p>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(service.clientAddress)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                        title="Ver en Google Maps"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Maps
+                      </a>
+                    </div>
+
+                    {service.clientSignature && (
+                      <div className="mt-3 p-2.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Firmado por <strong>{service.clientSignature.signedBy}</strong> ({service.clientSignature.signedAt})</span>
+                      </div>
+                    )}
 
                     {service.specialInstructions && (
-                      <div className="mt-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 font-medium">
+                      <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 font-medium">
                         <span className="font-bold block text-slate-800 mb-1 flex items-center gap-1.5">
                           <Info className="w-3.5 h-3.5 text-blue-600" /> Nota especial:
                         </span>
@@ -265,7 +339,7 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                       ></div>
                     </div>
 
-                    <div className="mt-5 flex gap-2">
+                    <div className="mt-5 flex flex-wrap gap-2">
                       {service.status !== 'en_proceso' && service.status !== 'completado' && (
                         <button
                           onClick={(e) => {
@@ -288,6 +362,19 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                           <CheckCircle2 className="w-4 h-4" /> Concluir Servicio
                         </button>
                       )}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const cli = clients.find((c) => c.name === service.clientName);
+                          const html = generateServiceOrderHTML(service, cli);
+                          exportToHTMLPDF(`Orden_Servicio_${service.id}`, html);
+                        }}
+                        className="px-3 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                        title="Descargar Orden PDF"
+                      >
+                        <Download className="w-3.5 h-3.5" /> PDF
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -374,7 +461,79 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                 </div>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-slate-100">
+              {/* Client Signature & Approval Section */}
+              <div className="mt-6 pt-4 border-t border-slate-100 space-y-3">
+                {currentService.clientSignature ? (
+                  <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Firma de Conformidad Registrada
+                      </span>
+                      <button
+                        onClick={() => setShowSignatureModal(true)}
+                        className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                      >
+                        Cambiar Firma
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {currentService.clientSignature.signatureDataUrl && (
+                        <div className="w-20 h-10 bg-white border border-emerald-200 rounded-lg overflow-hidden flex items-center justify-center p-0.5">
+                          <img
+                            src={currentService.clientSignature.signatureDataUrl}
+                            alt="Firma del cliente"
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
+                      )}
+                      <div className="text-xs text-emerald-900">
+                        <p className="font-semibold">{currentService.clientSignature.signedBy}</p>
+                        <p className="text-[10px] text-emerald-700">{currentService.clientSignature.signedAt}</p>
+                      </div>
+                    </div>
+                    {currentService.clientSignature.comments && (
+                      <p className="text-[11px] text-emerald-800 mt-2 italic">
+                        "{currentService.clientSignature.comments}"
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowSignatureModal(true)}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <FileSignature className="w-4 h-4 text-amber-700" />
+                    Solicitar Firma Digital del Cliente
+                  </button>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      const completedTasks = currentService.tasks.filter((t) => t.completed).length;
+                      const text = `📋 *REPORTE DE SERVICIO CONCLUIDO*\n*Sede:* ${currentService.clientName}\n*Folio:* ${currentService.id}\n*Técnico:* ${currentService.operativeName}\n*Tareas:* ${completedTasks}/${currentService.tasks.length} finalizadas\n*Evidencias:* ${currentService.evidences.length} fotos adjuntadas\n*Firma Cliente:* ${currentService.clientSignature ? `✅ Firmado por ${currentService.clientSignature.signedBy}` : 'Pendiente'}\n\n_Generado por ${COMPANY_BRAND.legalName}_`;
+                      shareViaWhatsApp(text);
+                    }}
+                    className="py-2.5 px-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    title="Compartir reporte por WhatsApp"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    WhatsApp
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const cli = clients.find((c) => c.name === currentService.clientName);
+                      const html = generateServiceOrderHTML(currentService, cli);
+                      exportToHTMLPDF(`Orden_Servicio_${currentService.id}`, html);
+                    }}
+                    className="py-2.5 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Orden PDF
+                  </button>
+                </div>
+
                 <button
                   onClick={() => onUpdateServiceStatus(currentService.id, 'completado')}
                   className="w-full py-3 px-4 rounded-2xl bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-slate-200"
@@ -887,6 +1046,22 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
         <IncidentReportModal
           incident={selectedIncidentForReport}
           onClose={() => setSelectedIncidentForReport(null)}
+        />
+      )}
+
+      {/* Digital Signature Modal */}
+      {showSignatureModal && (
+        <ClientSignatureModal
+          isOpen={showSignatureModal}
+          onClose={() => setShowSignatureModal(false)}
+          serviceId={currentService.id}
+          clientName={currentService.clientName}
+          onSaveSignature={(signature) => {
+            if (onSaveClientSignature) {
+              onSaveClientSignature(currentService.id, signature);
+            }
+            setShowSignatureModal(false);
+          }}
         />
       )}
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Quotation, QuotationItem } from '../../../types';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
+import { COMPANY_BRAND } from '../../../constants/branding';
 
 interface QuotationManagerProps {
   quotations: Quotation[];
@@ -42,11 +43,11 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({
       folio: `COT-${new Date().getMonth() + 1}${new Date().getDate()}-01`,
       date: new Date().toISOString().split('T')[0],
       validUntil: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
-      companyName: 'CleanPro Servicios Integrales S.A. de C.V.',
-      companyTaxId: 'CSI190423-LK9',
-      companyPhone: '+52 (55) 8000-9200',
-      companyEmail: 'contacto@cleanproservicios.com',
-      companyAddress: 'Av. Insurgentes Sur #1450, Piso 5, Benito Juárez, CDMX',
+      companyName: COMPANY_BRAND.legalName,
+      companyTaxId: COMPANY_BRAND.taxId,
+      companyPhone: COMPANY_BRAND.phone,
+      companyEmail: COMPANY_BRAND.email,
+      companyAddress: COMPANY_BRAND.address,
       clientName: '',
       clientContact: '',
       clientTaxId: '',
@@ -654,16 +655,21 @@ export const QuotationManager: React.FC<QuotationManagerProps> = ({
                 {/* Header: Emisor & Folio */}
                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4 pb-6 border-b border-slate-200">
                   <div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-extrabold text-xl">
-                        CP
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-2xl bg-white p-1 border border-slate-200 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+                        <img
+                          src={COMPANY_BRAND.logoUrl}
+                          alt={COMPANY_BRAND.name}
+                          className="w-full h-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
                       </div>
                       <div>
                         <h2 className="text-xl font-bold text-slate-900">
                           {currentViewing.companyName}
                         </h2>
-                        <span className="text-xs text-slate-500 font-medium">
-                          Servicios Profesionales de Limpieza y Mantenimiento
+                        <span className="text-xs text-slate-500 font-medium block mt-0.5">
+                          {COMPANY_BRAND.tagline}
                         </span>
                       </div>
                     </div>

@@ -12,7 +12,8 @@ import {
   TransactionRecord,
   PhotoEvidence,
   WarehouseMovement,
-  Quotation
+  Quotation,
+  ServiceTask
 } from './types';
 import {
   INITIAL_SERVICES,
@@ -57,6 +58,7 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('home');
   const [activeTab, setActiveTab] = useState<string>('agenda');
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+  const [selectedOperativeId, setSelectedOperativeId] = useState<string>('EMP-01');
 
   // In-memory application data state
   const [services, setServices] = useState<CleaningService[]>(INITIAL_SERVICES);
@@ -315,20 +317,45 @@ export default function App() {
   };
 
   const handleAddService = (
-    service: Omit<CleaningService, 'id' | 'tasks' | 'evidences' | 'approvedByAdmin'>
+    service: Omit<CleaningService, 'id' | 'evidences' | 'approvedByAdmin'> & { tasks?: ServiceTask[] }
   ) => {
+    const defaultTasks: ServiceTask[] = [
+      { id: `T-${Date.now()}-1`, name: 'Limpieza y aspirado de pisos y alfombras', category: 'Pisos', completed: false },
+      { id: `T-${Date.now()}-2`, name: 'Desinfección de sanitarios y reposición', category: 'Sanitarios', completed: false },
+      { id: `T-${Date.now()}-3`, name: 'Retiro y clasificación de residuos', category: 'Residuos', completed: false },
+      { id: `T-${Date.now()}-4`, name: 'Limpieza de canceles, cristales y escritorios', category: 'Mobiliario', completed: false }
+    ];
+
     const newSrv: CleaningService = {
       ...service,
       id: `SRV-${Date.now().toString().slice(-3)}`,
-      tasks: [
-        { id: `T-${Date.now()}-1`, name: 'Limpieza y aspirado general', category: 'General', completed: false },
-        { id: `T-${Date.now()}-2`, name: 'Desinfección de sanitarios', category: 'Sanitarios', completed: false },
-        { id: `T-${Date.now()}-3`, name: 'Retiro y clasificación de residuos', category: 'Residuos', completed: false }
-      ],
+      tasks: service.tasks && service.tasks.length > 0 ? service.tasks : defaultTasks,
       evidences: [],
       approvedByAdmin: false
     };
     setServices((prev) => [newSrv, ...prev]);
+  };
+
+  const handleSaveClientSignature = (
+    serviceId: string,
+    signature: {
+      signedBy: string;
+      signatureDataUrl: string;
+      signedAt: string;
+      comments?: string;
+    }
+  ) => {
+    setServices((prev) =>
+      prev.map((s) =>
+        s.id === serviceId
+          ? {
+              ...s,
+              clientSignature: signature,
+              status: 'completado'
+            }
+          : s
+      )
+    );
   };
 
   const handleAddTransaction = (transaction: Omit<TransactionRecord, 'id'>) => {
@@ -475,7 +502,7 @@ export default function App() {
           activeModuleName={activeModuleName}
           onLogout={handleLogout}
           clientName="Oficinas SkyTower"
-          operativeName="Carlos Mendoza"
+          operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'Carlos Mendoza'}
           onSelectRole={handleSelectRole}
           onOpenSupabase={() => setIsSupabaseModalOpen(true)}
         />
@@ -490,7 +517,11 @@ export default function App() {
               kitItems={kitItems}
               supplies={supplies}
               movements={warehouseMovements}
-              operativeName="Carlos Mendoza"
+              employees={employees}
+              clients={clients}
+              selectedOperativeId={selectedOperativeId}
+              onSelectOperative={setSelectedOperativeId}
+              operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'Carlos Mendoza'}
               onUpdateServiceStatus={handleUpdateServiceStatus}
               onToggleTask={handleToggleTask}
               onAddEvidence={handleAddEvidence}
@@ -501,6 +532,7 @@ export default function App() {
               onEditWarehouseMovement={handleEditWarehouseMovement}
               onDeleteWarehouseMovement={handleDeleteWarehouseMovement}
               onAdjustSupplyStock={handleAdjustSupplyStock}
+              onSaveClientSignature={handleSaveClientSignature}
             />
           )}
 

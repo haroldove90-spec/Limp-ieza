@@ -46,6 +46,12 @@ export interface CleaningService {
   evidences: PhotoEvidence[];
   approvedByAdmin?: boolean;
   totalCost: number;
+  clientSignature?: {
+    signedBy: string;
+    signatureDataUrl: string;
+    signedAt: string;
+    comments?: string;
+  };
 }
 
 export interface KitItem {

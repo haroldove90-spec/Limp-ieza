@@ -1,6 +1,6 @@
 {
-  "name": "Gestión de negocio Limpieza",
-  "description": "Dashboard minimalista con control de operaciones, evidencias antes/después, reportes cada 3 días de insumos y finanzas.",
+  "name": "Sers Soluciones Operativas",
+  "description": "Plataforma integral de gestión de servicios, control de calidad, evidencias antes/después, reportes de insumos y cotizaciones para Sers Soluciones Operativas.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

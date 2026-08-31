@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserRole } from '../../types';
 import { Sparkles, LogOut, LucideIcon } from 'lucide-react';
+import { COMPANY_BRAND } from '../../constants/branding';
 
 export interface NavItem {
   id: string;
@@ -38,18 +39,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="hidden md:flex flex-col w-72 bg-white border-r border-slate-200 h-screen sticky top-0 shrink-0 select-none justify-between py-8 px-6">
+    <aside className="hidden md:flex flex-col w-72 bg-white border-r border-slate-200 h-screen sticky top-0 shrink-0 select-none justify-between py-6 px-6">
       <div>
-        {/* Brand Header */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
-            <Sparkles className="w-5 h-5 text-white" />
+        {/* Brand Header with Sers Logo */}
+        <div className="flex items-center gap-3 mb-8 pb-5 border-b border-slate-100">
+          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center p-1 border border-slate-100 shadow-sm shrink-0 overflow-hidden">
+            <img
+              src={COMPANY_BRAND.logoUrl}
+              alt={COMPANY_BRAND.name}
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
-          <div>
-            <h1 className="font-bold text-xl tracking-tight leading-tight text-slate-900">
-              Gestión de<br />Limpieza
+          <div className="overflow-hidden">
+            <h1 className="font-extrabold text-base tracking-tight leading-tight text-slate-900 truncate">
+              {COMPANY_BRAND.name}
             </h1>
-            <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider mt-0.5">
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mt-0.5">
               {getRoleTitle()}
             </p>
           </div>

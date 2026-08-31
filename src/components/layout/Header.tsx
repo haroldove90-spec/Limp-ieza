@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserRole } from '../../types';
 import { Sparkles, LogOut, HardHat, Building2, ShieldCheck, User, ChevronDown, Database } from 'lucide-react';
+import { COMPANY_BRAND } from '../../constants/branding';
 
 interface HeaderProps {
   currentRole: UserRole;
@@ -43,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
         return {
           label: 'Administrador',
           name: 'Carlos Méndez',
-          roleDesc: 'Dueño de Negocio',
+          roleDesc: 'Dirección Operativa',
           icon: ShieldCheck,
           badgeColor: 'bg-slate-100 text-slate-800 border-slate-200'
         };
@@ -65,22 +66,27 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 md:px-10 sticky top-0 z-20">
       {/* Left: Mobile Brand & Active module title */}
       <div className="flex items-center gap-3">
-        <div className="flex md:hidden items-center gap-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 shrink-0">
-            <Sparkles className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 border border-slate-200 shadow-xs shrink-0 overflow-hidden">
+            <img
+              src={COMPANY_BRAND.logoUrl}
+              alt={COMPANY_BRAND.name}
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
         </div>
 
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+          <h1 className="text-lg sm:text-2xl font-bold text-slate-800 tracking-tight leading-tight">
             {activeModuleName}
           </h1>
           <div className="flex items-center gap-2 mt-0.5">
             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${roleInfo.badgeColor}`}>
               {roleInfo.label}
             </span>
-            <p className="text-xs text-slate-400 font-medium hidden sm:inline">
-              Gestión CleanPro
+            <p className="text-xs text-slate-500 font-semibold hidden sm:inline">
+              {COMPANY_BRAND.name}
             </p>
           </div>
         </div>

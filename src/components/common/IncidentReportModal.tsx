@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Printer, Download, MapPin, Clock, Calendar, User, ShieldAlert, CheckCircle, Mail } from 'lucide-react';
 import { IncidentReport } from '../../types';
 import { EmailSenderModal, EmailModalData } from './EmailSenderModal';
+import { COMPANY_BRAND } from '../../constants/branding';
 
 interface IncidentReportModalProps {
   incident: IncidentReport | null;
@@ -34,11 +35,11 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
       `• Estado Actual: ${incident.status === 'resuelto' ? 'RESUELTO / VALIDADO' : 'EN REVISIÓN'}\n\n` +
       `DESCRIPCIÓN DEL HECHO:\n${incident.description}\n\n` +
       (incident.adminResolution ? `DICTAMEN ADMINISTRATIVO:\n${incident.adminResolution}\n\n` : '') +
-      `Atentamente,\nCleanPro Servicios Integrales S.A. de C.V.\nInsurgentes Sur #1450, CDMX • Tel: +52 (55) 8000-9200`;
+      `Atentamente,\n${COMPANY_BRAND.legalName}\n${COMPANY_BRAND.address} • Tel: ${COMPANY_BRAND.phone}`;
 
     setEmailModalData({
       title: 'Enviar Reporte de Incidencia por Correo',
-      defaultRecipient: 'administracion@cleanproservicios.com',
+      defaultRecipient: COMPANY_BRAND.email,
       defaultSubject: subject,
       defaultBody: body,
       reportType: 'Incidencia',
@@ -54,8 +55,10 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
   <title>Reporte Técnico de Incidencia - ${incident.id}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; color: #1e293b; line-height: 1.5; }
-    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 24px; }
-    .logo { font-size: 24px; font-weight: 800; color: #2563eb; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 24px; align-items: center; }
+    .brand-flex { display: flex; align-items: center; gap: 16px; }
+    .logo-img { width: 56px; height: 56px; object-fit: contain; }
+    .logo { font-size: 22px; font-weight: 800; color: #0f172a; }
     .folio-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 12px; text-align: right; }
     .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; background: #ffedd5; color: #9a3412; }
     .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0; }
@@ -73,10 +76,13 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
 </head>
 <body>
   <div class="header">
-    <div>
-      <div class="logo">CleanPro Servicios Integrales</div>
-      <div style="font-size: 13px; color: #64748b;">Reporte Técnico Oficial de Incidencias Operativas</div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">RFC: CSI190423-LK9 • Insurgentes Sur #1450, Benito Juárez, CDMX</div>
+    <div class="brand-flex">
+      <img src="${COMPANY_BRAND.logoUrl}" alt="${COMPANY_BRAND.name}" class="logo-img" />
+      <div>
+        <div class="logo">${COMPANY_BRAND.legalName}</div>
+        <div style="font-size: 13px; color: #64748b;">Reporte Técnico Oficial de Incidencias Operativas</div>
+        <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">RFC: ${COMPANY_BRAND.taxId} • ${COMPANY_BRAND.address}</div>
+      </div>
     </div>
     <div class="folio-box">
       <div style="font-size: 10px; color: #64748b; font-weight: 700;">FOLIO DE ACTA</div>
@@ -215,13 +221,18 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
           {/* Document Header */}
           <div className="flex flex-col sm:flex-row justify-between sm:items-start pb-6 border-b border-slate-200 gap-4">
             <div>
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-extrabold text-lg">
-                  CP
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-white p-1 border border-slate-200 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+                  <img
+                    src={COMPANY_BRAND.logoUrl}
+                    alt={COMPANY_BRAND.name}
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
                 <div>
                   <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                    CleanPro Servicios Integrales
+                    {COMPANY_BRAND.legalName}
                   </h1>
                   <p className="text-xs text-slate-500 font-medium">
                     Control Operativo y Dictámenes Técnicos
@@ -229,7 +240,7 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
                 </div>
               </div>
               <p className="text-xs text-slate-400 mt-2">
-                RFC: CSI190423-LK9 • Insurgentes Sur #1450, Benito Juárez, CDMX
+                RFC: {COMPANY_BRAND.taxId} • {COMPANY_BRAND.address}
               </p>
             </div>
 

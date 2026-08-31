@@ -45,18 +45,26 @@ import {
   EmployeeProfile,
   TransactionRecord,
   PhotoEvidence,
-  Quotation
+  Quotation,
+  ServiceTask
 } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { QuotationManager } from './QuotationManager';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
+import { COMPANY_BRAND } from '../../../constants/branding';
 import {
   exportToExcel,
   exportToHTMLPDF,
   shareViaWhatsApp,
   cleanPhoneNumber
 } from '../../../utils/exportUtils';
+import {
+  SERVICE_TASK_PRESETS,
+  sendServiceOrderToEmployee,
+  generateServiceOrderHTML,
+  buildServiceOrderWhatsAppMessage
+} from '../../../utils/serviceOrderUtils';
 
 interface AdminDashboardProps {
   activeTab: string;
@@ -75,7 +83,7 @@ interface AdminDashboardProps {
   onApproveSupplyRequest: (requestId: string, status: SupplyRequest['status']) => void;
   onAddClient: (client: Omit<ClientProfile, 'id'>) => void;
   onAddEmployee: (employee: Omit<EmployeeProfile, 'id' | 'servicesCompletedThisMonth'>) => void;
-  onAddService: (service: Omit<CleaningService, 'id' | 'tasks' | 'evidences' | 'approvedByAdmin'>) => void;
+  onAddService: (service: Omit<CleaningService, 'id' | 'evidences' | 'approvedByAdmin'> & { tasks?: ServiceTask[] }) => void;
   onAddTransaction: (transaction: Omit<TransactionRecord, 'id'>) => void;
   onToggleAutoReport: (clientId: string) => void;
   onSaveQuotation: (quotation: Quotation) => void;
@@ -140,9 +148,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showNewServiceModal, setShowNewServiceModal] = useState(false);
   const [srvClientName, setSrvClientName] = useState(clients[0]?.name || '');
   const [srvOperativeName, setSrvOperativeName] = useState(employees[0]?.name || '');
-  const [srvDate, setSrvDate] = useState('2026-08-25');
+  const [srvDate, setSrvDate] = useState(new Date().toISOString().split('T')[0]);
   const [srvTimeSlot, setSrvTimeSlot] = useState('08:00 - 12:00');
   const [srvNotes, setSrvNotes] = useState('');
+  const [srvPreset, setSrvPreset] = useState<string>('Oficinas y Corporativo');
+  const [srvCustomTasks, setSrvCustomTasks] = useState<{ id: string; name: string; category: string }[]>([
+    { id: '1', name: 'Limpieza y aspirado de pisos y alfombras', category: 'Pisos' },
+    { id: '2', name: 'Desinfección de escritorios y estaciones', category: 'Mobiliario' },
+    { id: '3', name: 'Sanitización profunda de baños y reposición', category: 'Sanitarios' },
+    { id: '4', name: 'Retiro y clasificación de residuos', category: 'Residuos' }
+  ]);
+  const [newCustomTaskName, setNewCustomTaskName] = useState('');
+  const [newCustomTaskCategory, setNewCustomTaskCategory] = useState('General');
+  const [sendWhatsAppOnCreate, setSendWhatsAppOnCreate] = useState(true);
+
+  // Dispatch & Printable Order helpers
+  const handleDownloadServiceOrderPDF = (service: CleaningService) => {
+    const client = clients.find((c) => c.name === service.clientName);
+    const html = generateServiceOrderHTML(service, client);
+    exportToHTMLPDF(`Orden_Servicio_${service.id}_${service.clientName.replace(/\s+/g, '_')}`, html);
+  };
+
+  const handleSendOrderWhatsApp = (service: CleaningService) => {
+    const client = clients.find((c) => c.name === service.clientName);
+    const emp = employees.find((e) => e.name === service.operativeName || e.id === service.operativeId);
+    sendServiceOrderToEmployee(service, client, emp);
+  };
+
+  const handleSelectPreset = (presetName: string) => {
+    setSrvPreset(presetName);
+    const tasks = SERVICE_TASK_PRESETS[presetName];
+    if (tasks) {
+      setSrvCustomTasks(
+        tasks.map((t, idx) => ({
+          id: `task-preset-${idx + 1}`,
+          name: t.name,
+          category: t.category
+        }))
+      );
+    }
+  };
+
+  const handleAddCustomTask = () => {
+    if (!newCustomTaskName.trim()) return;
+    setSrvCustomTasks((prev) => [
+      ...prev,
+      {
+        id: `task-custom-${Date.now()}`,
+        name: newCustomTaskName.trim(),
+        category: newCustomTaskCategory
+      }
+    ]);
+    setNewCustomTaskName('');
+  };
+
+  const handleRemoveCustomTask = (taskId: string) => {
+    setSrvCustomTasks((prev) => prev.filter((t) => t.id !== taskId));
+  };
 
   const [showNewFinanceModal, setShowNewFinanceModal] = useState(false);
   const [txType, setTxType] = useState<'ingreso' | 'gasto'>('ingreso');
@@ -260,10 +322,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Informe Gerencial de Calidad y Supervisión - CleanPro</title>
+  <title>Informe Gerencial de Calidad y Supervisión - ${COMPANY_BRAND.name}</title>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; color: #1e293b; background: #fff; }
-    .header { display: flex; justify-content: space-between; border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
+    .header { display: flex; justify-content: space-between; border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; align-items: center; }
+    .brand-box { display: flex; align-items: center; gap: 14px; }
+    .brand-logo { width: 52px; height: 52px; object-fit: contain; }
     .badge { background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
     .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; }
@@ -276,9 +340,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 </head>
 <body>
   <div class="header">
-    <div>
-      <h1 style="margin:0; font-size: 22px; color: #0f172a;">CleanPro Servicios Integrales S.A. de C.V.</h1>
-      <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">Informe Gerencial de Supervisión, Calidad y Operaciones</p>
+    <div class="brand-box">
+      <img src="${COMPANY_BRAND.logoUrl}" alt="${COMPANY_BRAND.name}" class="brand-logo" />
+      <div>
+        <h1 style="margin:0; font-size: 22px; color: #0f172a;">${COMPANY_BRAND.legalName}</h1>
+        <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">Informe Gerencial de Supervisión, Calidad y Operaciones</p>
+      </div>
     </div>
     <div style="text-align: right;">
       <span class="badge">AUDITORÍA CENTRAL</span>
@@ -336,12 +403,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   </table>
 
   <div class="footer">
-    CleanPro Servicios Integrales S.A. de C.V. • Sistema de Gestión de Operaciones y Calidad
+    ${COMPANY_BRAND.legalName} • Sistema de Gestión de Operaciones y Calidad
   </div>
 </body>
 </html>`;
 
-    exportToHTMLPDF(`Reporte_Supervision_CleanPro_${new Date().toISOString().split('T')[0]}`, htmlContent);
+    exportToHTMLPDF(`Reporte_Supervision_${COMPANY_BRAND.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, htmlContent);
   };
 
   // 2. INCIDENTS: EXPORT & SHARE
@@ -359,7 +426,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       i.status.toUpperCase(),
       i.adminResolution || 'En proceso de seguimiento'
     ]);
-    exportToExcel(`Bitacora_Incidencias_CleanPro_${new Date().toISOString().split('T')[0]}`, headers, rows);
+    exportToExcel(`Bitacora_Incidencias_${COMPANY_BRAND.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, headers, rows);
   };
 
   const handleShareIncidentWhatsApp = (inc: IncidentReport) => {
@@ -373,7 +440,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       `👷 *Técnico:* ${inc.operativeName}\n` +
       `📊 *Estado:* ${inc.status.toUpperCase()}\n` +
       (inc.adminResolution ? `✅ *Resolución:* ${inc.adminResolution}\n` : '') +
-      `\n🛡️ *CleanPro Control Central*`;
+      `\n🛡️ *${COMPANY_BRAND.name} Control Central*`;
 
     shareViaWhatsApp(text);
   };
@@ -392,11 +459,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       `DESCRIPCIÓN DEL SUCESO:\n${inc.description}\n\n` +
       (inc.adminResolution ? `RESOLUCIÓN / SOLUCIÓN ACORDADA:\n${inc.adminResolution}\n\n` : '') +
       `Para mayor detalle y evidencia fotográfica consulte el portal oficial o el reporte PDF adjunto.\n\n` +
-      `Atentamente,\nSupervisión y Control de Calidad\nCleanPro Servicios Integrales`;
+      `Atentamente,\nSupervisión y Control de Calidad\n${COMPANY_BRAND.legalName}`;
 
     setEmailModalData({
       title: 'Enviar Incidencia por Correo',
-      defaultRecipient: 'operaciones@cleanproservicios.com',
+      defaultRecipient: COMPANY_BRAND.email,
       defaultSubject: subject,
       defaultBody: body,
       reportType: 'Incidencia Operativa',
@@ -418,7 +485,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       (s.currentStock * s.costPerUnit).toFixed(2),
       s.currentStock <= s.minimumStock ? 'BAJO STOCK' : 'OPTIMO'
     ]);
-    exportToExcel(`Inventario_Almacen_CleanPro_${new Date().toISOString().split('T')[0]}`, headers, rows);
+    exportToExcel(`Inventario_Almacen_${COMPANY_BRAND.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, headers, rows);
   };
 
   const handleShareWarehouseWhatsApp = () => {
@@ -426,7 +493,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const totalVal = supplies.reduce((acc, s) => acc + s.currentStock * s.costPerUnit, 0);
 
     const text =
-      `📦 *REPORTE DE ALMACÉN E INSUMOS CENTRALES - CLEANPRO*\n` +
+      `📦 *REPORTE DE ALMACÉN E INSUMOS CENTRALES - ${COMPANY_BRAND.name.toUpperCase()}*\n` +
       `📅 *Fecha:* ${new Date().toLocaleDateString('es-MX')}\n` +
       `💰 *Valor Total Inventario:* $${totalVal.toLocaleString('es-MX')} MXN\n` +
       `⚠️ *Insumos Bajo Stock:* ${lowStock.length}\n\n` +
@@ -439,7 +506,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )
             .join('\n')
         : '✅ Todos los insumos cuentan con stock óptimo.') +
-      `\n\n🛒 *Control de Almacén y Suministros CleanPro*`;
+      `\n\n🛒 *Control de Almacén y Suministros ${COMPANY_BRAND.name}*`;
 
     shareViaWhatsApp(text);
   };
@@ -448,7 +515,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const lowStockCount = supplies.filter((s) => s.currentStock <= s.minimumStock).length;
     const totalInventoryValue = supplies.reduce((acc, s) => acc + s.currentStock * s.costPerUnit, 0);
 
-    const subject = `[REPORTE ALMACÉN] Estado de Stock e Insumos Centrales - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
+    const subject = `[REPORTE ALMACÉN] Estado de Stock e Insumos Centrales - ${COMPANY_BRAND.name} (${new Date().toLocaleDateString('es-MX')})`;
     const body =
       `Estimada Administración / Compras,\n\n` +
       `A continuación se detalla el balance de existencias e insumos del Almacén Central:\n\n` +
@@ -464,11 +531,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             ` ${idx + 1}. ${s.name} (${s.category}) | Stock: ${s.currentStock} ${s.unit} (Mín: ${s.minimumStock}) | Costo: $${s.costPerUnit} MXN ${s.currentStock <= s.minimumStock ? '⚠️ [REPOSICIÓN URGENTE]' : '✅'}`
         )
         .join('\n') +
-      `\n\nAtentamente,\nControl de Almacén y Suministros\nCleanPro Servicios Integrales`;
+      `\n\nAtentamente,\nControl de Almacén y Suministros\n${COMPANY_BRAND.legalName}`;
 
     setEmailModalData({
       title: 'Enviar Balance de Almacén por Correo',
-      defaultRecipient: 'compras@cleanproservicios.com',
+      defaultRecipient: COMPANY_BRAND.email,
       defaultSubject: subject,
       defaultBody: body,
       reportType: 'Balance de Almacén e Inventario',
@@ -509,7 +576,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleShareDirectoryWhatsApp = () => {
     const text =
-      `🏢 *DIRECTORIO DE CLIENTES Y PERSONAL ASIGNADO - CLEANPRO*\n` +
+      `🏢 *DIRECTORIO DE CLIENTES Y PERSONAL ASIGNADO - ${COMPANY_BRAND.name.toUpperCase()}*\n` +
       `📅 *Fecha:* ${new Date().toLocaleDateString('es-MX')}\n` +
       `👥 *Clientes Totales:* ${clients.length} | 👷 *Técnicos:* ${employees.length}\n\n` +
       `📍 *ASIGNACIONES POR SEDE:*\n` +
@@ -519,13 +586,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             `• *${c.name}*\n  Contacto: ${c.contactPerson} (${c.phone})\n  👷 Técnico Asignado: *${c.assignedEmployeeName || 'Sin Asignar'}* (${c.assignedEmployeePhone || 'N/A'})`
         )
         .join('\n\n') +
-      `\n\n✨ *Gestión y Asignación Operativa CleanPro*`;
+      `\n\n✨ *Gestión y Asignación Operativa ${COMPANY_BRAND.name}*`;
 
     shareViaWhatsApp(text);
   };
 
   const handleSendDirectoryEmail = () => {
-    const subject = `[DIRECTORIO DE ASIGNACIONES] Clientes y Personal Operativo CleanPro (${new Date().toLocaleDateString('es-MX')})`;
+    const subject = `[DIRECTORIO DE ASIGNACIONES] Clientes y Personal Operativo ${COMPANY_BRAND.name} (${new Date().toLocaleDateString('es-MX')})`;
     const body =
       `Estimado Equipo Administrativo,\n\n` +
       `Se adjunta el directorio operativo oficial con la asignación vigente de técnicos por cliente:\n\n` +
@@ -535,11 +602,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             ` ${idx + 1}. ${c.name} (${c.address})\n    - Contacto: ${c.contactPerson} | Tel: ${c.phone}\n    - Técnico Asignado: ${c.assignedEmployeeName || 'Sin Asignar'} (${c.assignedEmployeeRole || 'Técnico'})\n    - Teléfono Técnico: ${c.assignedEmployeePhone || 'N/A'}\n    - Póliza: $${c.monthlyFee.toLocaleString('es-MX')} MXN (${c.contractFrequency})\n`
         )
         .join('\n') +
-      `\nAtentamente,\nDirección de Operaciones y Recursos Humanos\nCleanPro Servicios Integrales`;
+      `\nAtentamente,\nDirección de Operaciones y Recursos Humanos\n${COMPANY_BRAND.legalName}`;
 
     setEmailModalData({
       title: 'Enviar Directorio de Asignaciones por Correo',
-      defaultRecipient: 'operaciones@cleanproservicios.com',
+      defaultRecipient: COMPANY_BRAND.email,
       defaultSubject: subject,
       defaultBody: body,
       reportType: 'Directorio y Asignaciones',
@@ -559,23 +626,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       tx.entity || '',
       tx.amount
     ]);
-    exportToExcel(`Libro_Financiero_CleanPro_${new Date().toISOString().split('T')[0]}`, headers, rows);
+    exportToExcel(`Libro_Financiero_${COMPANY_BRAND.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`, headers, rows);
   };
 
   const handleShareFinancesWhatsApp = () => {
     const text =
-      `💰 *ESTADO FINANCIERO Y BALANCE GENERAL - CLEANPRO*\n` +
+      `💰 *ESTADO FINANCIERO Y BALANCE GENERAL - ${COMPANY_BRAND.name.toUpperCase()}*\n` +
       `📅 *Fecha:* ${new Date().toLocaleDateString('es-MX')}\n\n` +
       `📈 *Ingresos Totales (Cobros):* $${totalIncome.toLocaleString('es-MX')} MXN\n` +
       `📉 *Gastos Operativos (Egresos):* $${totalExpense.toLocaleString('es-MX')} MXN\n` +
       `💵 *BALANCE NETO:* +$${netBalance.toLocaleString('es-MX')} MXN\n\n` +
-      `💼 *CleanPro Contabilidad y Finanzas*`;
+      `💼 *${COMPANY_BRAND.name} Contabilidad y Finanzas*`;
 
     shareViaWhatsApp(text);
   };
 
   const handleSendFinancesEmail = () => {
-    const subject = `[ESTADO FINANCIERO] Balance General y Flujo de Operaciones - CleanPro (${new Date().toLocaleDateString('es-MX')})`;
+    const subject = `[ESTADO FINANCIERO] Balance General y Flujo de Operaciones - ${COMPANY_BRAND.name} (${new Date().toLocaleDateString('es-MX')})`;
     const body =
       `Estimada Dirección General / Contabilidad,\n\n` +
       `Se remite el estado de cuenta y balance financiero operativo correspondiente al período:\n\n` +
@@ -591,11 +658,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             ` ${idx + 1}. [${tx.type.toUpperCase()}] ${tx.date} - ${tx.concept} (${tx.entity || 'N/A'}): $${tx.amount.toLocaleString('es-MX')} MXN`
         )
         .join('\n') +
-      `\n\nAtentamente,\nDirección de Administración y Finanzas\nCleanPro Servicios Integrales S.A. de C.V.`;
+      `\n\nAtentamente,\nDirección de Administración y Finanzas\n${COMPANY_BRAND.legalName}`;
 
     setEmailModalData({
       title: 'Enviar Estado Financiero por Correo',
-      defaultRecipient: 'contabilidad@cleanproservicios.com',
+      defaultRecipient: COMPANY_BRAND.email,
       defaultSubject: subject,
       defaultBody: body,
       reportType: 'Estado Financiero y Libro Mayor',
@@ -662,16 +729,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const client = clients.find((c) => c.name === srvClientName);
     const emp = employees.find((em) => em.name === srvOperativeName);
 
-    onAddService({
+    const generatedTasks: ServiceTask[] =
+      srvCustomTasks.length > 0
+        ? srvCustomTasks.map((t, idx) => ({
+            id: `T-${Date.now()}-${idx + 1}`,
+            name: t.name,
+            category: t.category,
+            completed: false
+          }))
+        : [
+            { id: `T-${Date.now()}-1`, name: 'Limpieza y aspirado general', category: 'General', completed: false },
+            { id: `T-${Date.now()}-2`, name: 'Desinfección de sanitarios', category: 'Sanitarios', completed: false },
+            { id: `T-${Date.now()}-3`, name: 'Retiro y clasificación de residuos', category: 'Residuos', completed: false }
+          ];
+
+    const servicePayload = {
       clientName: srvClientName,
       clientAddress: client?.address || 'Dirección registrada',
       date: srvDate,
       timeSlot: srvTimeSlot,
-      status: 'programado',
+      status: 'programado' as const,
       operativeId: emp?.id || 'EMP-01',
       operativeName: srvOperativeName || 'Carlos Mendoza',
-      notes: srvNotes
-    });
+      specialInstructions: srvNotes,
+      totalCost: client?.monthlyFee ? Math.round(client.monthlyFee / 20) : 1500,
+      tasks: generatedTasks
+    };
+
+    onAddService(servicePayload);
+
+    if (sendWhatsAppOnCreate) {
+      sendServiceOrderToEmployee(
+        {
+          ...servicePayload,
+          id: `SRV-${Date.now().toString().slice(-3)}`,
+          evidences: [],
+          approvedByAdmin: false
+        },
+        client,
+        emp
+      );
+    }
 
     setShowNewServiceModal(false);
     setSrvNotes('');
@@ -838,12 +936,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
                       <div>
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                           <span className="font-bold text-slate-900 text-base md:text-lg">
                             {service.clientName}
                           </span>
                           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600">
-                            {service.operativeName}
+                            👷 {service.operativeName}
                           </span>
                           {service.approvedByAdmin ? (
                             <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase flex items-center gap-1">
@@ -851,24 +949,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </span>
                           ) : (
                             <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded-full uppercase">
-                              Pendiente
+                              {service.status === 'en_proceso' ? 'En Proceso' : 'Pendiente'}
+                            </span>
+                          )}
+
+                          {service.clientSignature && (
+                            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-full flex items-center gap-1">
+                              ✍️ Firmado por {service.clientSignature.signedBy} ({service.clientSignature.signedAt})
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-slate-400">
-                          {service.date} • {service.timeSlot} • {service.clientAddress}
+                          Folio: <strong>{service.id}</strong> • {service.date} • {service.timeSlot} • {service.clientAddress}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
-                          onClick={() => {
-                            const text = `📋 *SERVICIO ${service.id} - ${service.clientName}*\n📅 *Fecha:* ${service.date} (${service.timeSlot})\n👷 *Técnico:* ${service.operativeName}\n✅ *Tareas:* ${completedTasks}/${service.tasks.length}\n📸 *Evidencias:* ${service.evidences.length} fotos adjuntas.`;
-                            shareViaWhatsApp(text);
-                          }}
-                          className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          onClick={() => handleSendOrderWhatsApp(service)}
+                          className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Enviar orden de trabajo completa por WhatsApp al técnico"
                         >
-                          <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                          <MessageSquare className="w-3.5 h-3.5" /> Despachar a Técnico
+                        </button>
+
+                        <button
+                          onClick={() => handleDownloadServiceOrderPDF(service)}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Descargar Orden de Servicio Oficial en PDF/HTML"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Orden PDF
                         </button>
 
                         {!service.approvedByAdmin && (
@@ -1718,85 +1828,216 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* MODAL: PROGRAMAR SERVICIO */}
+      {/* MODAL: PROGRAMAR SERVICIO CON TAREAS Y DESPACHO WHATSAPP */}
       {showNewServiceModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-1">Programar Nuevo Servicio</h3>
-            <p className="text-xs text-slate-400 mb-4">Agenda un turno de limpieza para un cliente</p>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Programar y Asignar Orden de Servicio</h3>
+                <p className="text-xs text-slate-400">Configura el turno, personal asignado y checklist de tareas</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewServiceModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
-            <form onSubmit={handleCreateService} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Cliente / Sede:</label>
-                <select
-                  value={srvClientName}
-                  onChange={(e) => setSrvClientName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-blue-500"
-                >
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Técnico Operativo:</label>
-                <select
-                  value={srvOperativeName}
-                  onChange={(e) => setSrvOperativeName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-blue-500"
-                >
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.name}>
-                      {emp.name} ({emp.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+            <form onSubmit={handleCreateService} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Fecha:</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Cliente / Sede:</label>
+                  <select
+                    value={srvClientName}
+                    onChange={(e) => {
+                      setSrvClientName(e.target.value);
+                      const cli = clients.find((c) => c.name === e.target.value);
+                      if (cli?.assignedEmployeeName) {
+                        setSrvOperativeName(cli.assignedEmployeeName);
+                      }
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-blue-500 font-medium"
+                  >
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Técnico Operativo Asignado:</label>
+                  <select
+                    value={srvOperativeName}
+                    onChange={(e) => setSrvOperativeName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-blue-500 font-medium"
+                  >
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name} ({emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Fecha Programada:</label>
                   <input
                     type="date"
+                    required
                     value={srvDate}
                     onChange={(e) => setSrvDate(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Horario:</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Horario / Ventana de Trabajo:</label>
                   <input
                     type="text"
+                    required
                     value={srvTimeSlot}
                     onChange={(e) => setSrvTimeSlot(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                    placeholder="Ej. 08:00 - 12:00"
                   />
                 </div>
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Notas especiales:</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Instrucciones Especiales:</label>
                 <input
                   type="text"
-                  placeholder="Ej. Desinfección profunda de salas de juntas"
+                  placeholder="Ej. Desinfección profunda de salas de juntas y área de cafetería"
                   value={srvNotes}
                   onChange={(e) => setSrvNotes(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-3">
+
+              {/* Plantilla y Checklist de Tareas */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block">Plantilla de Checklist / Protocolo:</label>
+                    <span className="text-[11px] text-slate-400">Selecciona un preset o agrega tareas personalizadas</span>
+                  </div>
+                  <select
+                    value={srvPreset}
+                    onChange={(e) => handleSelectPreset(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold bg-white focus:outline-blue-500"
+                  >
+                    {Object.keys(SERVICE_TASK_PRESETS).map((presetName) => (
+                      <option key={presetName} value={presetName}>
+                        {presetName}
+                      </option>
+                    ))}
+                    <option value="Personalizado">Personalizado (Manual)</option>
+                  </select>
+                </div>
+
+                {/* Task list preview */}
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  {srvCustomTasks.map((t, idx) => (
+                    <div
+                      key={t.id || idx}
+                      className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200/60 text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px] flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                        <span className="font-semibold text-slate-800">{t.name}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                          {t.category}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCustomTask(t.id)}
+                        className="text-slate-400 hover:text-red-600 p-1 cursor-pointer transition-colors"
+                        title="Eliminar tarea"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add new task inline */}
+                <div className="flex gap-2 pt-2 border-t border-slate-200">
+                  <input
+                    type="text"
+                    placeholder="Agregar tarea específica..."
+                    value={newCustomTaskName}
+                    onChange={(e) => setNewCustomTaskName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomTask();
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-blue-500"
+                  />
+                  <select
+                    value={newCustomTaskCategory}
+                    onChange={(e) => setNewCustomTaskCategory(e.target.value)}
+                    className="px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-blue-500 font-medium"
+                  >
+                    <option value="General">General</option>
+                    <option value="Pisos">Pisos</option>
+                    <option value="Sanitarios">Sanitarios</option>
+                    <option value="Cristales">Cristales</option>
+                    <option value="Mobiliario">Mobiliario</option>
+                    <option value="Residuos">Residuos</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomTask}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                  >
+                    + Agregar
+                  </button>
+                </div>
+              </div>
+
+              {/* Instant WhatsApp Dispatch Checkbox */}
+              <label className="flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sendWhatsAppOnCreate}
+                  onChange={(e) => setSendWhatsAppOnCreate(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
+                />
+                <div>
+                  <span className="text-xs font-bold text-emerald-900 block flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
+                    Despachar orden inmediatamente por WhatsApp al técnico
+                  </span>
+                  <span className="text-[11px] text-emerald-700">
+                    Abre WhatsApp con la ubicación en Google Maps, folio y el checklist para el personal
+                  </span>
+                </div>
+              </label>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowNewServiceModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-slate-200"
+                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold cursor-pointer shadow-lg shadow-slate-200 flex items-center gap-1.5"
                 >
-                  Programar Turno
+                  <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                  Confirmar y Asignar Orden
                 </button>
               </div>
             </form>
