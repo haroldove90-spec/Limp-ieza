@@ -1,14 +1,20 @@
 import React from 'react';
 import { UserRole } from '../../types';
-import { Sparkles, HardHat, Building2, ShieldCheck, ArrowRight, Database } from 'lucide-react';
+import { Sparkles, HardHat, Building2, ShieldCheck, ArrowRight, Database, FileText, Download } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
+import { downloadSystemWorkflowPDF } from '../../utils/workflowDocumentUtils';
 
 interface RoleSelectorHomeProps {
   onSelectRole: (role: UserRole) => void;
   onOpenSupabase?: () => void;
+  onOpenWorkflow?: () => void;
 }
 
-export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole, onOpenSupabase }) => {
+export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({
+  onSelectRole,
+  onOpenSupabase,
+  onOpenWorkflow
+}) => {
   const roles = [
     {
       id: 'operative' as UserRole,
@@ -47,7 +53,27 @@ export const RoleSelectorHome: React.FC<RoleSelectorHomeProps> = ({ onSelectRole
       {/* Brand Header */}
       <header className="max-w-5xl mx-auto w-full pt-4 md:pt-8 text-center">
         {/* Top Controls & Status */}
-        <div className="flex items-center justify-center gap-3 mb-6">
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+          {onOpenWorkflow && (
+            <button
+              onClick={onOpenWorkflow}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-full border border-blue-200 shadow-xs text-xs font-bold cursor-pointer transition-all"
+              title="Ver el flujo completo del sistema con opción a descargar en PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              <span>Flujo de Trabajo (PDF para Clientes)</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => downloadSystemWorkflowPDF()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-xs text-xs font-bold cursor-pointer transition-all"
+            title="Descargar directamente el Flujo de Trabajo en PDF"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-400" />
+            <span>Descargar PDF</span>
+          </button>
+
           {onOpenSupabase && (
             <button
               onClick={onOpenSupabase}

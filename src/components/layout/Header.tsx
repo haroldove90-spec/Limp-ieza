@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole } from '../../types';
-import { Sparkles, LogOut, HardHat, Building2, ShieldCheck, User, ChevronDown, Database } from 'lucide-react';
+import { Sparkles, LogOut, HardHat, Building2, ShieldCheck, User, ChevronDown, Database, FileText } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 
 interface HeaderProps {
@@ -9,6 +9,7 @@ interface HeaderProps {
   onLogout: () => void;
   onSelectRole?: (role: UserRole) => void;
   onOpenSupabase?: () => void;
+  onOpenWorkflow?: () => void;
   clientName?: string;
   operativeName?: string;
 }
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onSelectRole,
   onOpenSupabase,
+  onOpenWorkflow,
   clientName,
   operativeName
 }) => {
@@ -92,8 +94,20 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Supabase Button, Quick Role Switcher & User Profile */}
-      <div className="flex items-center gap-2 sm:gap-4">
+      {/* Right: Workflow Button, Supabase Button, Quick Role Switcher & User Profile */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {onOpenWorkflow && (
+          <button
+            onClick={onOpenWorkflow}
+            title="Ver y descargar Flujo de Trabajo del Sistema en PDF"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold text-xs cursor-pointer transition-all shadow-xs"
+          >
+            <FileText className="w-3.5 h-3.5 text-blue-600" />
+            <span className="hidden xl:inline">Flujo de Trabajo (PDF)</span>
+            <span className="xl:hidden hidden sm:inline">Flujo PDF</span>
+          </button>
+        )}
+
         {onOpenSupabase && (
           <button
             onClick={onOpenSupabase}

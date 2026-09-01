@@ -32,6 +32,7 @@ import { supabaseService } from './services/supabaseService';
 import { SupabaseModal } from './components/common/SupabaseModal';
 
 import { RoleSelectorHome } from './components/common/RoleSelectorHome';
+import { SystemWorkflowModal } from './components/common/SystemWorkflowModal';
 import { Header } from './components/layout/Header';
 import { Sidebar, NavItem } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
@@ -58,6 +59,7 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('home');
   const [activeTab, setActiveTab] = useState<string>('agenda');
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState<boolean>(false);
   const [selectedOperativeId, setSelectedOperativeId] = useState<string>('EMP-01');
 
   // In-memory application data state
@@ -473,11 +475,17 @@ export default function App() {
         <RoleSelectorHome
           onSelectRole={handleSelectRole}
           onOpenSupabase={() => setIsSupabaseModalOpen(true)}
+          onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
         />
         <SupabaseModal
           isOpen={isSupabaseModalOpen}
           onClose={() => setIsSupabaseModalOpen(false)}
           onDataSync={loadDataFromSupabase}
+        />
+        <SystemWorkflowModal
+          isOpen={isWorkflowModalOpen}
+          onClose={() => setIsWorkflowModalOpen(false)}
+          clientName="Oficinas Corporativas SkyTower"
         />
       </>
     );
@@ -505,6 +513,7 @@ export default function App() {
           operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'Carlos Mendoza'}
           onSelectRole={handleSelectRole}
           onOpenSupabase={() => setIsSupabaseModalOpen(true)}
+          onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
         />
 
         {/* Dynamic Role Views */}
@@ -547,6 +556,7 @@ export default function App() {
               clientProfile={currentClientProfile}
               assignedEmployee={assignedEmp}
               onEmitSupplyRequest={handleEmitSupplyRequest}
+              onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
             />
           )}
 
@@ -574,6 +584,8 @@ export default function App() {
               onSaveQuotation={handleSaveQuotation}
               onUpdateQuotationStatus={handleUpdateQuotationStatus}
               onAssignEmployeeToClient={handleAssignEmployeeToClient}
+              onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
+              onAddEvidence={handleAddEvidence}
             />
           )}
         </main>
@@ -591,6 +603,13 @@ export default function App() {
         isOpen={isSupabaseModalOpen}
         onClose={() => setIsSupabaseModalOpen(false)}
         onDataSync={loadDataFromSupabase}
+      />
+
+      {/* System Workflow & Protocol Modal for Clients */}
+      <SystemWorkflowModal
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
+        clientName={currentRole === 'client' ? 'Oficinas Corporativas SkyTower' : 'Estimado Cliente'}
       />
     </div>
   );

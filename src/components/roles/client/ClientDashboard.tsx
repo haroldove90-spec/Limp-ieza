@@ -36,6 +36,7 @@ import {
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
+import { HistoricalAuditModal } from '../../common/HistoricalAuditModal';
 import { COMPANY_BRAND } from '../../../constants/branding';
 import {
   exportToExcel,
@@ -43,6 +44,11 @@ import {
   shareViaWhatsApp,
   cleanPhoneNumber
 } from '../../../utils/exportUtils';
+import { downloadSystemWorkflowPDF } from '../../../utils/workflowDocumentUtils';
+import {
+  downloadHistoricalAuditPDF,
+  shareServiceReportWithEvidencesViaWhatsApp
+} from '../../../utils/serviceOrderUtils';
 
 interface ClientDashboardProps {
   activeTab: string;
@@ -54,6 +60,7 @@ interface ClientDashboardProps {
   clientProfile?: ClientProfile;
   assignedEmployee?: EmployeeProfile;
   onEmitSupplyRequest: (request: Omit<SupplyRequest, 'id' | 'requestDate' | 'status'>) => void;
+  onOpenWorkflow?: () => void;
 }
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
@@ -65,12 +72,15 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   clientName = 'Oficinas Corporativas SkyTower',
   clientProfile,
   assignedEmployee,
-  onEmitSupplyRequest
+  onEmitSupplyRequest,
+  onOpenWorkflow
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
   const [selectedIncidentForReport, setSelectedIncidentForReport] = useState<IncidentReport | null>(null);
   const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
+  const [showHistoricalVault, setShowHistoricalVault] = useState(false);
+  const [vaultInitialServiceId, setVaultInitialServiceId] = useState<string | undefined>(undefined);
 
   // Sub-tab state for internal client navigation when activeTab is generic
   const [clientSection, setClientSection] = useState<'evidencias' | 'insumos' | 'incidencias' | 'tecnico'>(
@@ -530,9 +540,32 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           </button>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60">
-          <Building className="w-3.5 h-3.5 text-blue-600" />
-          <span>{clientName}</span>
+        <div className="flex items-center gap-2">
+          {onOpenWorkflow && (
+            <button
+              onClick={onOpenWorkflow}
+              className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              title="Consultar protocolo y flujo del sistema"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              <span>Flujo de Trabajo (PDF)</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => downloadSystemWorkflowPDF(clientName)}
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+            title="Descargar protocolo oficial en PDF"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden sm:inline">Descargar Flujo PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </button>
+
+          <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/60">
+            <Building className="w-3.5 h-3.5 text-blue-600" />
+            <span>{clientName}</span>
+          </div>
         </div>
       </div>
 
@@ -613,16 +646,40 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => {
-                        const text = `📋 *SERVICIO ${service.id}*\n📅 *Fecha:* ${service.date} (${service.timeSlot})\n👷 *Técnico:* ${service.operativeName}\n✅ *Estado:* ${service.status.toUpperCase()}\n📸 *Evidencias:* ${service.evidences.length} áreas auditadas.`;
-                        shareViaWhatsApp(text);
+                        const srvInc = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
+                        shareServiceReportWithEvidencesViaWhatsApp(service, clientProfile, srvInc);
                       }}
-                      className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Compartir reporte por WhatsApp con fotos y firmas"
                     >
-                      <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp c/ Fotos
                     </button>
+
+                    <button
+                      onClick={() => {
+                        const srvInc = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
+                        downloadHistoricalAuditPDF(service, clientProfile, srvInc);
+                      }}
+                      className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Descargar Expediente de Auditoría y Resguardo Inmutable (PDF)"
+                    >
+                      <Download className="w-3.5 h-3.5 text-purple-700" /> Expediente PDF
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setVaultInitialServiceId(service.id);
+                        setShowHistoricalVault(true);
+                      }}
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Ver en Bóveda Histórica"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-purple-700" /> Bóveda
+                    </button>
+
                     <span className="text-xs font-bold text-green-700 bg-green-50 px-3 py-1 rounded-full uppercase">
                       {service.status === 'completado' ? 'Completado y Auditado' : 'En Ejecución'}
                     </span>
@@ -1190,6 +1247,17 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
         data={emailModalData}
         isOpen={!!emailModalData}
         onClose={() => setEmailModalData(null)}
+      />
+
+      {/* BÓVEDA DE RESGUARDO HISTÓRICO & AUDITORÍA MODAL */}
+      <HistoricalAuditModal
+        isOpen={showHistoricalVault}
+        onClose={() => setShowHistoricalVault(false)}
+        services={clientServices}
+        clients={clientProfile ? [clientProfile] : []}
+        incidents={clientIncidents}
+        initialServiceId={vaultInitialServiceId}
+        onOpenEvidenceViewer={(ev) => setViewingEvidence(ev)}
       />
     </div>
   );

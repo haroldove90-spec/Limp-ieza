@@ -40,9 +40,16 @@ import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { WarehouseOperativeModule } from './WarehouseOperativeModule';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 import { ClientSignatureModal } from '../../common/ClientSignatureModal';
+import { EvidenceUploadModal } from '../../common/EvidenceUploadModal';
+import { HistoricalAuditModal } from '../../common/HistoricalAuditModal';
 import { COMPANY_BRAND } from '../../../constants/branding';
 import { exportToHTMLPDF, shareViaWhatsApp } from '../../../utils/exportUtils';
-import { generateServiceOrderHTML, buildServiceOrderWhatsAppMessage } from '../../../utils/serviceOrderUtils';
+import {
+  generateServiceOrderHTML,
+  buildServiceOrderWhatsAppMessage,
+  downloadHistoricalAuditPDF,
+  shareServiceReportWithEvidencesViaWhatsApp
+} from '../../../utils/serviceOrderUtils';
 
 interface OperativeDashboardProps {
   activeTab: string;
@@ -107,6 +114,8 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   const [selectedIncidentForReport, setSelectedIncidentForReport] = useState<IncidentReport | null>(null);
   const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [showEvidenceUploadModal, setShowEvidenceUploadModal] = useState(false);
+  const [showHistoricalVaultModal, setShowHistoricalVaultModal] = useState(false);
 
   // New Evidence Form State
   const [newArea, setNewArea] = useState('');
@@ -510,27 +519,51 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
-                      const completedTasks = currentService.tasks.filter((t) => t.completed).length;
-                      const text = `📋 *REPORTE DE SERVICIO CONCLUIDO*\n*Sede:* ${currentService.clientName}\n*Folio:* ${currentService.id}\n*Técnico:* ${currentService.operativeName}\n*Tareas:* ${completedTasks}/${currentService.tasks.length} finalizadas\n*Evidencias:* ${currentService.evidences.length} fotos adjuntadas\n*Firma Cliente:* ${currentService.clientSignature ? `✅ Firmado por ${currentService.clientSignature.signedBy}` : 'Pendiente'}\n\n_Generado por ${COMPANY_BRAND.legalName}_`;
-                      shareViaWhatsApp(text);
+                      const cli = clients.find((c) => c.name === currentService.clientName);
+                      const srvInc = incidents.filter((i) => i.serviceId === currentService.id || (i.clientName === currentService.clientName && i.date === currentService.date));
+                      shareServiceReportWithEvidencesViaWhatsApp(currentService, cli, srvInc);
                     }}
-                    className="py-2.5 px-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                    title="Compartir reporte por WhatsApp"
+                    className="py-2.5 px-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                    title="Compartir reporte por WhatsApp con evidencias fotográficas y firmas"
                   >
                     <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                    WhatsApp
+                    WhatsApp c/ Fotos
                   </button>
 
+                  <button
+                    onClick={() => {
+                      const cli = clients.find((c) => c.name === currentService.clientName);
+                      const srvInc = incidents.filter((i) => i.serviceId === currentService.id || (i.clientName === currentService.clientName && i.date === currentService.date));
+                      downloadHistoricalAuditPDF(currentService, cli, srvInc);
+                    }}
+                    className="py-2.5 px-3 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    title="Descargar Expediente de Auditoría y Resguardo en PDF"
+                  >
+                    <Download className="w-3.5 h-3.5 text-purple-700" />
+                    Expediente PDF
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
                       const cli = clients.find((c) => c.name === currentService.clientName);
                       const html = generateServiceOrderHTML(currentService, cli);
                       exportToHTMLPDF(`Orden_Servicio_${currentService.id}`, html);
                     }}
-                    className="py-2.5 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    className="py-2 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    Orden PDF
+                    <FileText className="w-3.5 h-3.5" />
+                    Orden Simple
+                  </button>
+
+                  <button
+                    onClick={() => setShowHistoricalVaultModal(true)}
+                    className="py-2 px-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    title="Consultar Bóveda de Resguardo Histórico"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    Bóveda Histórica
                   </button>
                 </div>
 
@@ -556,13 +589,24 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                     </h3>
                   </div>
 
-                  <button
-                    onClick={() => setShowEvidenceForm(!showEvidenceForm)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 text-white font-semibold text-xs md:text-sm hover:bg-blue-700 transition-colors cursor-pointer shadow-md shadow-blue-200"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Nueva Área</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowEvidenceUploadModal(true)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs hover:bg-blue-100 transition-colors cursor-pointer"
+                      title="Subir fotos desde cámara o archivo"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Subir Foto/Archivo</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowEvidenceForm(!showEvidenceForm)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 text-white font-semibold text-xs md:text-sm hover:bg-blue-700 transition-colors cursor-pointer shadow-md shadow-blue-200"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Nueva Área</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* New Evidence Capture Form */}
@@ -1070,6 +1114,30 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
         data={emailModalData}
         isOpen={!!emailModalData}
         onClose={() => setEmailModalData(null)}
+      />
+
+      {/* SUBIDA DE EVIDENCIAS FOTOGRÁFICAS MODAL */}
+      {currentService && (
+        <EvidenceUploadModal
+          isOpen={showEvidenceUploadModal}
+          onClose={() => setShowEvidenceUploadModal(false)}
+          service={currentService}
+          onSaveEvidence={(srvId, ev) => {
+            onAddEvidence(srvId, ev);
+            setShowEvidenceUploadModal(false);
+          }}
+        />
+      )}
+
+      {/* BÓVEDA DE RESGUARDO HISTÓRICO & BLINDAJE ANTE RECLAMACIONES MODAL */}
+      <HistoricalAuditModal
+        isOpen={showHistoricalVaultModal}
+        onClose={() => setShowHistoricalVaultModal(false)}
+        services={services}
+        clients={clients}
+        incidents={incidents}
+        initialServiceId={currentService?.id}
+        onOpenEvidenceViewer={(ev) => setViewingEvidence(ev)}
       />
     </div>
   );

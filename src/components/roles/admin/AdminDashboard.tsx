@@ -52,6 +52,8 @@ import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
 import { QuotationManager } from './QuotationManager';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
+import { EvidenceUploadModal } from '../../common/EvidenceUploadModal';
+import { HistoricalAuditModal } from '../../common/HistoricalAuditModal';
 import { COMPANY_BRAND } from '../../../constants/branding';
 import {
   exportToExcel,
@@ -63,8 +65,11 @@ import {
   SERVICE_TASK_PRESETS,
   sendServiceOrderToEmployee,
   generateServiceOrderHTML,
-  buildServiceOrderWhatsAppMessage
+  buildServiceOrderWhatsAppMessage,
+  downloadHistoricalAuditPDF,
+  shareServiceReportWithEvidencesViaWhatsApp
 } from '../../../utils/serviceOrderUtils';
+import { downloadSystemWorkflowPDF, shareWorkflowViaWhatsApp } from '../../../utils/workflowDocumentUtils';
 
 interface AdminDashboardProps {
   activeTab: string;
@@ -89,6 +94,8 @@ interface AdminDashboardProps {
   onSaveQuotation: (quotation: Quotation) => void;
   onUpdateQuotationStatus: (quotationId: string, status: Quotation['status']) => void;
   onAssignEmployeeToClient?: (clientId: string, employeeId: string) => void;
+  onOpenWorkflow?: () => void;
+  onAddEvidence?: (serviceId: string, evidence: Omit<PhotoEvidence, 'id' | 'timestamp'>) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -113,11 +120,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onToggleAutoReport,
   onSaveQuotation,
   onUpdateQuotationStatus,
-  onAssignEmployeeToClient
+  onAssignEmployeeToClient,
+  onOpenWorkflow,
+  onAddEvidence
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
   const [selectedIncidentForReport, setSelectedIncidentForReport] = useState<IncidentReport | null>(null);
+  const [historicalAuditModalOpen, setHistoricalAuditModalOpen] = useState(false);
+  const [historicalAuditInitialServiceId, setHistoricalAuditInitialServiceId] = useState<string | undefined>(undefined);
+  const [evidenceUploadService, setEvidenceUploadService] = useState<CleaningService | null>(null);
 
   // Resolution modal state
   const [resolvingIncId, setResolvingIncId] = useState<string | null>(null);
@@ -868,6 +880,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
+          {/* BÓVEDA DE RESGUARDO HISTÓRICO & BLINDAJE BANNER */}
+          <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
+            <div className="absolute right-0 top-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="space-y-2 max-w-2xl relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30 text-xs font-bold uppercase tracking-wider">
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
+                Bóveda de Resguardo Histórico Inmutable
+              </div>
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight">
+                Blindaje ante Reclamaciones Posteriores y Auditoría Digital
+              </h2>
+              <p className="text-xs md:text-sm text-purple-100/80 leading-relaxed">
+                Todas las evidencias fotográficas (Antes/Después), firmas electrónicas, checklists y bitácoras de incidentes quedan archivadas de forma permanente y fechada. Responda al instante a reclamaciones de clientes con un <strong>Expediente de Auditoría Oficial en PDF</strong> o envíelo por WhatsApp.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 relative z-10">
+              <button
+                onClick={() => {
+                  setHistoricalAuditInitialServiceId(undefined);
+                  setHistoricalAuditModalOpen(true);
+                }}
+                className="px-5 py-3 rounded-2xl bg-white hover:bg-purple-50 text-purple-950 font-bold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-purple-950/40 cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                <ShieldCheck className="w-4 h-4 text-purple-700" />
+                Abrir Bóveda de Resguardo
+              </button>
+            </div>
+          </div>
+
           {/* Evidence Review Panel */}
           <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
@@ -884,6 +926,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    setHistoricalAuditInitialServiceId(undefined);
+                    setHistoricalAuditModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Abrir Bóveda de Resguardo Histórico"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-purple-700" /> Bóveda Histórica
+                </button>
                 <button
                   onClick={handleShareSupervisionWhatsApp}
                   className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
@@ -924,6 +976,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="space-y-4">
               {services.map((service) => {
                 const completedTasks = service.tasks.filter((t) => t.completed).length;
+                const clientObj = clients.find((c) => c.name === service.clientName);
+                const srvIncidents = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
 
                 return (
                   <div
@@ -958,6 +1012,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               ✍️ Firmado por {service.clientSignature.signedBy} ({service.clientSignature.signedAt})
                             </span>
                           )}
+
+                          {service.evidences.length > 0 && (
+                            <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold rounded-full flex items-center gap-1">
+                              📷 {service.evidences.length} Evidencias
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-400">
                           Folio: <strong>{service.id}</strong> • {service.date} • {service.timeSlot} • {service.clientAddress}
@@ -965,20 +1025,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
+                        {/* WhatsApp with Evidences button */}
                         <button
-                          onClick={() => handleSendOrderWhatsApp(service)}
-                          className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Enviar orden de trabajo completa por WhatsApp al técnico"
+                          onClick={() => {
+                            shareServiceReportWithEvidencesViaWhatsApp(
+                              service,
+                              clientObj,
+                              srvIncidents
+                            );
+                          }}
+                          className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                          title="Enviar reporte por WhatsApp con fotos de antes/después y firmas"
                         >
-                          <MessageSquare className="w-3.5 h-3.5" /> Despachar a Técnico
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp c/ Fotos
+                        </button>
+
+                        {/* Upload Evidence button */}
+                        <button
+                          onClick={() => setEvidenceUploadService(service)}
+                          className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Subir fotos de evidencia para este servicio"
+                        >
+                          <Camera className="w-3.5 h-3.5" /> + Evidencia
+                        </button>
+
+                        {/* Historical Dossier PDF button */}
+                        <button
+                          onClick={() => downloadHistoricalAuditPDF(service, clientObj, srvIncidents)}
+                          className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Descargar Expediente de Auditoría Inmutable en PDF (Blindaje ante reclamos)"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-purple-700" /> Expediente PDF
+                        </button>
+
+                        {/* Vault shortcut */}
+                        <button
+                          onClick={() => {
+                            setHistoricalAuditInitialServiceId(service.id);
+                            setHistoricalAuditModalOpen(true);
+                          }}
+                          className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Consultar en Bóveda Histórica"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Bóveda
                         </button>
 
                         <button
-                          onClick={() => handleDownloadServiceOrderPDF(service)}
+                          onClick={() => handleSendOrderWhatsApp(service)}
                           className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Descargar Orden de Servicio Oficial en PDF/HTML"
+                          title="Enviar orden de trabajo al técnico"
                         >
-                          <Download className="w-3.5 h-3.5" /> Orden PDF
+                          <Send className="w-3.5 h-3.5" /> Despachar
                         </button>
 
                         {!service.approvedByAdmin && (
@@ -1397,7 +1494,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          onClick={() => downloadSystemWorkflowPDF(c.name)}
+                          className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Descargar Flujo de Trabajo PDF para este cliente"
+                        >
+                          <Download className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Flujo PDF</span>
+                        </button>
+                        <button
+                          onClick={() => shareWorkflowViaWhatsApp(c.name, c.phone)}
+                          className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Enviar resumen del Flujo por WhatsApp al cliente"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </button>
                         <button
                           onClick={() => handleOpenAssignModal(c)}
                           className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
@@ -2239,6 +2352,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           modalData={emailModalData}
           isOpen={!!emailModalData}
           onClose={() => setEmailModalData(null)}
+        />
+      )}
+
+      {/* BÓVEDA DE RESGUARDO HISTÓRICO & BLINDAJE ANTE RECLAMACIONES MODAL */}
+      <HistoricalAuditModal
+        isOpen={historicalAuditModalOpen}
+        onClose={() => setHistoricalAuditModalOpen(false)}
+        services={services}
+        clients={clients}
+        incidents={incidents}
+        initialServiceId={historicalAuditInitialServiceId}
+        onOpenEvidenceViewer={(ev) => setViewingEvidence(ev)}
+      />
+
+      {/* SUBIDA DE EVIDENCIAS FOTOGRÁFICAS MODAL */}
+      {evidenceUploadService && (
+        <EvidenceUploadModal
+          isOpen={!!evidenceUploadService}
+          onClose={() => setEvidenceUploadService(null)}
+          service={evidenceUploadService}
+          onSaveEvidence={(srvId, ev) => {
+            onAddEvidence?.(srvId, ev);
+            setEvidenceUploadService(null);
+          }}
         />
       )}
     </div>
