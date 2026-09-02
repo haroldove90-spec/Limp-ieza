@@ -37,6 +37,7 @@ import {
 } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
+import { IncidentResolutionModal } from '../../common/IncidentResolutionModal';
 import { WarehouseOperativeModule } from './WarehouseOperativeModule';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 import { ClientSignatureModal } from '../../common/ClientSignatureModal';
@@ -73,6 +74,15 @@ interface OperativeDashboardProps {
   onEditWarehouseMovement: (movement: WarehouseMovement) => void;
   onDeleteWarehouseMovement: (movementId: string) => void;
   onAdjustSupplyStock: (supplyId: string, newStock: number) => void;
+  onResolveIncidentWithEvidence?: (
+    incidentId: string,
+    data: {
+      resolutionNotes: string;
+      resolutionPhotoUrl?: string;
+      resolvedBy: string;
+      resolvedByRole?: 'operativo' | 'admin';
+    }
+  ) => void;
   onSaveClientSignature?: (
     serviceId: string,
     signature: {
@@ -106,6 +116,7 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   onEditWarehouseMovement,
   onDeleteWarehouseMovement,
   onAdjustSupplyStock,
+  onResolveIncidentWithEvidence,
   onSaveClientSignature
 }) => {
   const [selectedServiceId, setSelectedServiceId] = useState<string>(services[0]?.id || '');
@@ -116,6 +127,7 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [showEvidenceUploadModal, setShowEvidenceUploadModal] = useState(false);
   const [showHistoricalVaultModal, setShowHistoricalVaultModal] = useState(false);
+  const [resolvingIncident, setResolvingIncident] = useState<IncidentReport | null>(null);
 
   // New Evidence Form State
   const [newArea, setNewArea] = useState('');
@@ -197,11 +209,13 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
       serviceId: currentService?.id || 'SRV-101',
       clientName: currentService?.clientName || 'Cliente General',
       location: incLocation || 'Área Principal',
-      operativeName: 'Carlos Mendoza',
+      operativeName: operativeName || 'Carlos Mendoza',
       type: incType,
       title: incTitle,
       description: incDescription,
-      photoUrl: incPhotoUrl || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&auto=format&fit=crop&q=80'
+      photoUrl: incPhotoUrl || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&auto=format&fit=crop&q=80',
+      origin: 'operativo',
+      priority: 'normal'
     });
 
     setIncTitle('');
@@ -259,6 +273,46 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Banner de Solicitudes de Cliente Pendientes de Atención */}
+          {(() => {
+            const pendingClientReports = incidents.filter(
+              (i) => i.origin === 'cliente' && i.status !== 'resuelto'
+            );
+            if (pendingClientReports.length === 0) return null;
+            return (
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-orange-600 via-amber-600 to-amber-700 text-white shadow-lg shadow-orange-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-orange-400">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
+                    <AlertTriangle className="w-6 h-6 text-white animate-bounce" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+                        Atención Requerida
+                      </span>
+                      <h4 className="font-bold text-sm sm:text-base tracking-tight">
+                        {pendingClientReports.length} Solicitud(es) de Cliente en Sitio
+                      </h4>
+                    </div>
+                    <p className="text-xs text-orange-100 mt-1 font-medium">
+                      "{pendingClientReports[0].title}" en <strong>{pendingClientReports[0].location}</strong> ({pendingClientReports[0].clientName})
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setResolvingIncident(pendingClientReports[0])}
+                    className="px-4 py-2.5 bg-white text-orange-800 hover:bg-orange-50 rounded-2xl text-xs font-extrabold shadow-md cursor-pointer transition-all flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    Resolver con Evidencia Fotográfica
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Service Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -881,54 +935,148 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
             </div>
 
             <div className="space-y-3">
-              {incidents.map((inc) => (
-                <div
-                  key={inc.id}
-                  className="p-4 rounded-2xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-white transition-all space-y-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full">
-                      {inc.type.replace('_', ' ')}
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">{inc.time}</span>
-                  </div>
+              {incidents.map((inc) => {
+                const isResolved = inc.status === 'resuelto';
 
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm md:text-base">
-                      {inc.title}
-                    </h4>
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1">
-                      {inc.description}
-                    </p>
-                  </div>
+                return (
+                  <div
+                    key={inc.id}
+                    className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                      isResolved
+                        ? 'border-green-200 bg-green-50/20 hover:bg-white'
+                        : inc.origin === 'cliente'
+                        ? 'border-orange-300 bg-orange-50/30 hover:bg-white ring-1 ring-orange-200'
+                        : 'border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {inc.origin === 'cliente' ? (
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                            <User className="w-3 h-3 text-blue-600" /> Solicitud Cliente
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
+                            Hallazgo en Campo
+                          </span>
+                        )}
 
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
-                    <span className="text-slate-400">{inc.location}</span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleSendIncidentEmail(inc)}
-                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                        title="Enviar Notificación por Correo"
+                        {inc.priority && (
+                          <span
+                            className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                              inc.priority === 'urgente'
+                                ? 'bg-red-100 text-red-800'
+                                : inc.priority === 'alta'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {inc.priority}
+                          </span>
+                        )}
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                          isResolved
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
                       >
-                        <Mail className="w-3.5 h-3.5" /> Correo
-                      </button>
-                      <button
-                        onClick={() => setSelectedIncidentForReport(inc)}
-                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                        title="Ver / Exportar Reporte Técnico PDF"
-                      >
-                        <Printer className="w-3.5 h-3.5" /> PDF
-                      </button>
-                      <button
-                        onClick={() => setViewingIncident(inc)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-                      >
-                        Foto
-                      </button>
+                        {isResolved ? '✅ Resuelto' : '⏳ Pendiente'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm md:text-base">
+                        {inc.title}
+                      </h4>
+                      <p className="text-xs text-slate-500 line-clamp-2 mt-1">
+                        {inc.description}
+                      </p>
+                    </div>
+
+                    <div className="text-xs text-slate-600 space-y-1 bg-white/80 p-2.5 rounded-xl border border-slate-100">
+                      <div><strong>Ubicación:</strong> {inc.location}</div>
+                      <div><strong>Cliente:</strong> {inc.clientName}</div>
+                      <div className="text-[11px] text-slate-400">
+                        {inc.date} a las {inc.time} hrs
+                      </div>
+                    </div>
+
+                    {/* RESOLUTION STATUS / EVIDENCE */}
+                    {isResolved ? (
+                      <div className="p-3 bg-green-50 rounded-xl border border-green-200 text-xs space-y-1.5 text-green-900">
+                        <div className="font-bold flex items-center gap-1 text-[11px] uppercase">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                          Solución Confirmada ({inc.resolvedAt || 'Completado'})
+                        </div>
+                        <p className="text-[11px] text-green-950 italic">
+                          "{inc.resolutionNotes || inc.adminResolution}"
+                        </p>
+                        {inc.resolvedBy && (
+                          <div className="text-[10px] text-green-800">
+                            Atendido por: <strong>{inc.resolvedBy}</strong>
+                          </div>
+                        )}
+                        {inc.resolutionPhotoUrl && (
+                          <div className="pt-1.5">
+                            <button
+                              onClick={() =>
+                                setViewingIncident({
+                                  ...inc,
+                                  photoUrl: inc.resolutionPhotoUrl!
+                                })
+                              }
+                              className="text-[11px] font-bold text-green-800 underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <Camera className="w-3.5 h-3.5" /> Ver Foto de Solución
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => setResolvingIncident(inc)}
+                          className="w-full py-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Resolver con Evidencia Fotográfica
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
+                      <span className="text-[11px] text-slate-400">Folio #{inc.id}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleSendIncidentEmail(inc)}
+                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Enviar Notificación por Correo"
+                        >
+                          <Mail className="w-3.5 h-3.5" /> Correo
+                        </button>
+                        <button
+                          onClick={() => setSelectedIncidentForReport(inc)}
+                          className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Ver / Exportar Reporte Técnico PDF"
+                        >
+                          <Printer className="w-3.5 h-3.5" /> PDF
+                        </button>
+                        {inc.photoUrl && (
+                          <button
+                            onClick={() => setViewingIncident(inc)}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                          >
+                            Foto Inicial
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1092,6 +1240,21 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
           onClose={() => setSelectedIncidentForReport(null)}
         />
       )}
+
+      {/* Incident Resolution with Evidence Modal */}
+      <IncidentResolutionModal
+        isOpen={!!resolvingIncident}
+        onClose={() => setResolvingIncident(null)}
+        incident={resolvingIncident}
+        currentUserName={operativeName}
+        currentUserRole="operativo"
+        onResolve={(incidentId, data) => {
+          if (onResolveIncidentWithEvidence) {
+            onResolveIncidentWithEvidence(incidentId, data);
+          }
+          setResolvingIncident(null);
+        }}
+      />
 
       {/* Digital Signature Modal */}
       {showSignatureModal && (

@@ -274,7 +274,36 @@ export default function App() {
     setIncidents((prev) =>
       prev.map((i) =>
         i.id === incidentId
-          ? { ...i, status: 'resuelto', adminResolution: resolution }
+          ? { ...i, status: 'resuelto', adminResolution: resolution, resolutionNotes: resolution }
+          : i
+      )
+    );
+  };
+
+  const handleResolveIncidentWithEvidence = (
+    incidentId: string,
+    data: {
+      resolutionNotes: string;
+      resolutionPhotoUrl?: string;
+      resolvedBy: string;
+      resolvedByRole?: 'operativo' | 'admin';
+    }
+  ) => {
+    const now = new Date();
+    const resolvedAt = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    setIncidents((prev) =>
+      prev.map((i) =>
+        i.id === incidentId
+          ? {
+              ...i,
+              status: 'resuelto',
+              adminResolution: data.resolutionNotes,
+              resolutionNotes: data.resolutionNotes,
+              resolutionPhotoUrl: data.resolutionPhotoUrl,
+              resolvedAt,
+              resolvedBy: data.resolvedBy,
+              resolvedByRole: data.resolvedByRole || 'operativo'
+            }
           : i
       )
     );
@@ -541,6 +570,7 @@ export default function App() {
               onEditWarehouseMovement={handleEditWarehouseMovement}
               onDeleteWarehouseMovement={handleDeleteWarehouseMovement}
               onAdjustSupplyStock={handleAdjustSupplyStock}
+              onResolveIncidentWithEvidence={handleResolveIncidentWithEvidence}
               onSaveClientSignature={handleSaveClientSignature}
             />
           )}
@@ -556,6 +586,7 @@ export default function App() {
               clientProfile={currentClientProfile}
               assignedEmployee={assignedEmp}
               onEmitSupplyRequest={handleEmitSupplyRequest}
+              onClientReportIncident={handleAddIncident}
               onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
             />
           )}
@@ -574,6 +605,7 @@ export default function App() {
               quotations={quotations}
               onApproveService={handleApproveService}
               onResolveIncident={handleResolveIncident}
+              onResolveIncidentWithEvidence={handleResolveIncidentWithEvidence}
               onUpdateSupplyStock={handleUpdateSupplyStock}
               onApproveSupplyRequest={handleApproveSupplyRequest}
               onAddClient={handleAddClient}

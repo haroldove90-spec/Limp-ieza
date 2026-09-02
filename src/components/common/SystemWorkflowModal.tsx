@@ -73,7 +73,7 @@ export const SystemWorkflowModal: React.FC<SystemWorkflowModalProps> = ({
         'Check-In en plataforma al ingresar a las instalaciones del cliente.',
         'Cumplimiento sistemático del Checklist (sanitarios, pisos, escritorios, canceles, recolección de basura).',
         'Registro obligatorio de fotos de ANTES y DESPUÉS con sello automático de fecha y hora.',
-        'Levantamiento inmediato de Incidencias Previas (fugas, desperfectos o daños preexistentes) para deslinde y notificación inmediata al cliente.'
+        'Levantamiento de Incidencias en campo y atención prioritaria a reportes levantados por el cliente con evidencia de solución.'
       ],
       clientBenefit: 'Verificación visual irrefutable de la calidad del servicio realizado y protección contra reclamos de daños preexistentes.'
     },
@@ -95,19 +95,19 @@ export const SystemWorkflowModal: React.FC<SystemWorkflowModalProps> = ({
     },
     {
       id: 4,
-      title: 'Fase 4: Bóveda de Resguardo Histórico ante Reclamaciones',
-      subtitle: 'Trazabilidad inmutable para solventar dudas o reclamos posteriores',
-      badge: 'Resguardo Inmutable',
+      title: 'Fase 4: Bóveda de Resguardo Histórico y Reportes del Cliente',
+      subtitle: 'Trazabilidad inmutable, reportes en tiempo real y resolución con evidencia',
+      badge: 'Resguardo + Reportes',
       badgeColor: 'bg-purple-100 text-purple-800',
       icon: Layers,
       actor: 'Administración del Cliente y Supervisión Sers',
       details: [
         'Bóveda de Resguardo Inmutable: Fotos, bitácoras y firmas archivadas de forma permanente y no alterable.',
-        'Blindaje ante Reclamaciones Posteriores (Ej. reclamo el viernes por servicio de lunes): Consulta inmediata por fecha o folio y descarga del Expediente de Auditoría en PDF para deslinde y aclaración transparente.',
-        'Portal del Cliente 24/7 con control de insumos en ciclos de 3 días (papel, jabón, toallas) para prevenir desabastos.',
-        'Módulo de Pedido de Insumos en 1 clic y descarga de bitácoras en Excel/PDF.'
+        'Módulo de Reportes del Cliente: El cliente levanta incidencias en sitio (con fotos y prioridad) que llegan al técnico asignado y a la administración central.',
+        'Confirmación con Evidencia: El técnico o supervisor atiende el reporte y sube foto obligatoria de solución para solventar la solicitud con comparativa Antes/Después.',
+        'Portal del Cliente 24/7 con control de insumos en ciclos de 3 días y descarga de bitácoras en Excel/PDF.'
       ],
-      clientBenefit: 'Certeza jurídica y operativa total: cualquier reclamo posterior se solventa en minutos con evidencias fechadas y firmadas.'
+      clientBenefit: 'Certeza jurídica y operativa total: cualquier necesidad se reporta en segundos y se acredita resuelta con evidencia fotográfica irrefutable.'
     },
     {
       id: 5,

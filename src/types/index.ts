@@ -24,12 +24,22 @@ export interface IncidentReport {
   operativeName: string;
   date: string;
   time: string;
-  type: 'daño_previo' | 'zona_inaccesible' | 'falta_suministro' | 'cliente_ausente' | 'otro';
+  type: 'daño_previo' | 'zona_inaccesible' | 'falta_suministro' | 'cliente_ausente' | 'solicitud_cliente' | 'otro';
   title: string;
   description: string;
   photoUrl?: string;
   status: 'pendiente' | 'en_revision' | 'resuelto';
   adminResolution?: string;
+  origin?: 'operativo' | 'cliente';
+  priority?: 'normal' | 'alta' | 'urgente';
+  assignedEmployeeId?: string;
+  assignedEmployeeName?: string;
+  resolutionPhotoUrl?: string;
+  resolutionNotes?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolvedByRole?: 'operativo' | 'admin';
+  clientRating?: number;
 }
 
 export interface CleaningService {

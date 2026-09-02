@@ -18,6 +18,7 @@ import {
   Mail,
   MessageSquare,
   Users,
+  User,
   Phone,
   MapPin,
   ShieldCheck,
@@ -35,6 +36,7 @@ import {
 } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
+import { ClientReportModal } from '../../common/ClientReportModal';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 import { HistoricalAuditModal } from '../../common/HistoricalAuditModal';
 import { COMPANY_BRAND } from '../../../constants/branding';
@@ -60,6 +62,7 @@ interface ClientDashboardProps {
   clientProfile?: ClientProfile;
   assignedEmployee?: EmployeeProfile;
   onEmitSupplyRequest: (request: Omit<SupplyRequest, 'id' | 'requestDate' | 'status'>) => void;
+  onClientReportIncident?: (incident: Omit<IncidentReport, 'id' | 'date' | 'time' | 'status'>) => void;
   onOpenWorkflow?: () => void;
 }
 
@@ -73,6 +76,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   clientProfile,
   assignedEmployee,
   onEmitSupplyRequest,
+  onClientReportIncident,
   onOpenWorkflow
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
@@ -81,6 +85,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
   const [showHistoricalVault, setShowHistoricalVault] = useState(false);
   const [vaultInitialServiceId, setVaultInitialServiceId] = useState<string | undefined>(undefined);
+  const [showClientReportModal, setShowClientReportModal] = useState(false);
+  const [incidentFilter, setIncidentFilter] = useState<'all' | 'pendientes' | 'resueltos'>('all');
 
   // Sub-tab state for internal client navigation when activeTab is generic
   const [clientSection, setClientSection] = useState<'evidencias' | 'insumos' | 'incidencias' | 'tecnico'>(
@@ -541,6 +547,15 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowClientReportModal(true)}
+            className="px-3.5 sm:px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md shadow-orange-200 hover:scale-[1.02]"
+            title="Levantar reporte o solicitud en sitio al técnico y administración"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-white" />
+            <span>+ Levantar Reporte</span>
+          </button>
+
           {onOpenWorkflow && (
             <button
               onClick={onOpenWorkflow}
@@ -548,7 +563,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               title="Consultar protocolo y flujo del sistema"
             >
               <FileText className="w-3.5 h-3.5 text-blue-600" />
-              <span>Flujo de Trabajo (PDF)</span>
+              <span>Flujo (PDF)</span>
             </button>
           )}
 
@@ -946,102 +961,326 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       )}
 
       {/* 3. SECCIÓN: INCIDENCIAS TÉCNICAS */}
-      {clientSection === 'incidencias' && (
-        <div className="space-y-6">
-          <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl md:text-2xl font-bold text-slate-800">
-                Historial de Incidencias Técnicas
-              </h2>
-              <p className="text-sm text-slate-400 font-medium mt-1">
-                Registro y seguimiento de situaciones operativas, daños previos y requerimientos en sitio
-              </p>
-            </div>
+      {clientSection === 'incidencias' && (() => {
+        const pendingCount = clientIncidents.filter((i) => i.status !== 'resuelto').length;
+        const resolvedCount = clientIncidents.filter((i) => i.status === 'resuelto').length;
+        const filteredIncidents = clientIncidents.filter((i) => {
+          if (incidentFilter === 'pendientes') return i.status !== 'resuelto';
+          if (incidentFilter === 'resueltos') return i.status === 'resuelto';
+          return true;
+        });
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={handleExportIncidentsExcel}
-                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Exportar (CSV)
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
-              >
-                <Printer className="w-3.5 h-3.5" /> Imprimir
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {clientIncidents.map((inc, incIdx) => (
-              <div
-                key={inc.id || `client-inc-${incIdx}`}
-                className="bg-white p-6 rounded-3xl border border-orange-100 shadow-sm space-y-4"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 bg-orange-100 px-3 py-1 rounded-full">
-                    {inc.type.replace('_', ' ')} • Folio {inc.id}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">
-                    {inc.date} a las {inc.time}
-                  </span>
-                </div>
-
+        return (
+          <div className="space-y-6">
+            {/* Header with Metrics & Actions */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h4 className="font-bold text-slate-900 text-base">{inc.title}</h4>
-                  <p className="text-xs text-slate-500 mt-1">{inc.description}</p>
+                  <h2 className="text-xl md:text-2xl font-bold text-slate-800">
+                    Incidencias y Solicitudes en Sitio
+                  </h2>
+                  <p className="text-sm text-slate-400 font-medium mt-1">
+                    Levantamiento de reportes directos con notificación a tu técnico asignado y verificación de solución con evidencia fotográfica
+                  </p>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-2xl text-xs text-slate-600 space-y-1">
-                  <div><strong>Ubicación:</strong> {inc.location}</div>
-                  <div><strong>Reportado por:</strong> {inc.operativeName}</div>
-                  {inc.adminResolution && (
-                    <div className="text-green-700 font-semibold pt-1 border-t border-slate-200/60">
-                      <strong>Resolución:</strong> {inc.adminResolution}
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleShareIncidentWhatsApp(inc)}
-                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
-                    </button>
-                    <button
-                      onClick={() => handleSendIncidentEmail(inc)}
-                      className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <Mail className="w-3.5 h-3.5" /> Correo
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedIncidentForReport(inc)}
-                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <Printer className="w-3.5 h-3.5" /> Reporte PDF
-                    </button>
-                    {inc.photoUrl && (
-                      <button
-                        onClick={() => setViewingIncident(inc)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-                      >
-                        Ver Foto
-                      </button>
-                    )}
-                  </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setShowClientReportModal(true)}
+                    className="px-4 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-2xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md shadow-orange-200 hover:scale-[1.02]"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-white" />
+                    + Levantar Reporte en Sitio
+                  </button>
+                  <button
+                    onClick={handleExportIncidentsExcel}
+                    className="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" /> Exportar (CSV)
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Imprimir
+                  </button>
                 </div>
               </div>
-            ))}
+
+              {/* Status Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div
+                  onClick={() => setIncidentFilter('all')}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                    incidentFilter === 'all'
+                      ? 'bg-blue-50/70 border-blue-300 ring-2 ring-blue-500/20'
+                      : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Total Reportes
+                  </span>
+                  <span className="text-2xl font-black text-slate-900 mt-1 block">
+                    {clientIncidents.length}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">Registrados en historial</span>
+                </div>
+
+                <div
+                  onClick={() => setIncidentFilter('pendientes')}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                    incidentFilter === 'pendientes'
+                      ? 'bg-orange-50/70 border-orange-300 ring-2 ring-orange-500/20'
+                      : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-orange-700">
+                      Pendientes de Solución
+                    </span>
+                    {pendingCount > 0 && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+                    )}
+                  </div>
+                  <span className="text-2xl font-black text-orange-600 mt-1 block">
+                    {pendingCount}
+                  </span>
+                  <span className="text-xs text-orange-700 font-medium">
+                    {pendingCount > 0 ? 'Técnico y Admin notificados' : 'Sin reportes pendientes'}
+                  </span>
+                </div>
+
+                <div
+                  onClick={() => setIncidentFilter('resueltos')}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                    incidentFilter === 'resueltos'
+                      ? 'bg-green-50/70 border-green-300 ring-2 ring-green-500/20'
+                      : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-green-700 block">
+                    Resueltas con Evidencia
+                  </span>
+                  <span className="text-2xl font-black text-green-700 mt-1 block">
+                    {resolvedCount}
+                  </span>
+                  <span className="text-xs text-green-700 font-medium">Con foto de solución validada</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Incident Cards Grid */}
+            {filteredIncidents.length === 0 ? (
+              <div className="bg-white p-12 rounded-3xl border border-slate-100 text-center space-y-3">
+                <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
+                <h4 className="text-base font-bold text-slate-800">
+                  {incidentFilter === 'pendientes'
+                    ? '¡No hay reportes pendientes!'
+                    : 'No hay registros en esta categoría.'}
+                </h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Si detectas cualquier necesidad en tus instalaciones, puedes levantar un reporte directo usando el botón superior.
+                </p>
+                <button
+                  onClick={() => setShowClientReportModal(true)}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" /> Levantar Reporte en Sitio
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredIncidents.map((inc, incIdx) => {
+                  const isResolved = inc.status === 'resuelto';
+
+                  return (
+                    <div
+                      key={inc.id || `client-inc-${incIdx}`}
+                      className={`bg-white p-6 rounded-3xl border shadow-sm space-y-4 transition-all ${
+                        isResolved
+                          ? 'border-green-200/80 hover:border-green-300'
+                          : 'border-orange-200 hover:border-orange-300 ring-1 ring-orange-100'
+                      }`}
+                    >
+                      {/* Card Header */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {inc.origin === 'cliente' ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                              <User className="w-3 h-3 text-blue-600" /> Solicitud de Cliente
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                              Hallazgo Operativo
+                            </span>
+                          )}
+
+                          {inc.priority && (
+                            <span
+                              className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                inc.priority === 'urgente'
+                                  ? 'bg-red-100 text-red-800 border border-red-200 animate-pulse'
+                                  : inc.priority === 'alta'
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {inc.priority}
+                            </span>
+                          )}
+
+                          <span className="text-[10px] font-mono text-slate-400 font-bold">
+                            #{inc.id}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                            isResolved
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {isResolved ? '✅ Resuelto y Verificado' : '⏳ Pendiente de Solución'}
+                        </span>
+                      </div>
+
+                      {/* Title & Description */}
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-base">{inc.title}</h4>
+                        <p className="text-xs text-slate-600 mt-1 leading-relaxed">{inc.description}</p>
+                      </div>
+
+                      {/* Location & Personnel Info */}
+                      <div className="p-3.5 bg-slate-50 rounded-2xl text-xs text-slate-600 space-y-1.5 border border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span><strong>Ubicación:</strong> {inc.location}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span><strong>Técnico Asignado:</strong> {inc.operativeName} {assignedEmployee?.phone ? `• Tel: ${assignedEmployee.phone}` : ''}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>Reportado el {inc.date} a las {inc.time} hrs</span>
+                        </div>
+                      </div>
+
+                      {/* RESOLUTION STATUS WITH EVIDENCE SECTION */}
+                      {isResolved ? (
+                        <div className="p-4 rounded-2xl bg-green-50/80 border border-green-200 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-green-900 flex items-center gap-1.5 uppercase text-[11px]">
+                              <CheckCircle2 className="w-4 h-4 text-green-600" />
+                              Solución Confirmada en Sitio
+                            </span>
+                            {inc.resolvedAt && (
+                              <span className="text-[10px] text-green-700 font-medium">
+                                {inc.resolvedAt}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-green-950 font-medium leading-relaxed bg-white/70 p-2.5 rounded-xl border border-green-100">
+                            <strong>Dictamen:</strong> "{inc.resolutionNotes || inc.adminResolution}"
+                          </p>
+
+                          {inc.resolvedBy && (
+                            <div className="text-[11px] text-green-800">
+                              Atendido por: <strong>{inc.resolvedBy}</strong> ({inc.resolvedByRole === 'operativo' ? 'Técnico en Campo' : 'Dirección Operativa'})
+                            </div>
+                          )}
+
+                          {/* Resolution Photo Evidence */}
+                          {inc.resolutionPhotoUrl && (
+                            <div className="pt-2 border-t border-green-200/80">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-green-800 block mb-1.5">
+                                📸 Evidencia de Solución (Foto Después):
+                              </span>
+                              <div
+                                onClick={() =>
+                                  setViewingEvidence({
+                                    id: `res-${inc.id}`,
+                                    serviceId: inc.serviceId,
+                                    clientName: inc.clientName,
+                                    serviceType: 'Solución a Reporte',
+                                    type: 'despues',
+                                    photoUrl: inc.resolutionPhotoUrl!,
+                                    timestamp: inc.resolvedAt || inc.time,
+                                    location: inc.location,
+                                    notes: inc.resolutionNotes || 'Atención realizada con éxito'
+                                  })
+                                }
+                                className="relative rounded-xl overflow-hidden border-2 border-green-400 bg-slate-900 h-36 cursor-pointer group shadow-xs"
+                              >
+                                <img
+                                  src={inc.resolutionPhotoUrl}
+                                  alt="Solución"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors flex items-end p-2">
+                                  <span className="text-[10px] font-bold text-white bg-green-700/90 backdrop-blur-xs px-2 py-0.5 rounded-md">
+                                    Ver Foto de Solución en Grande
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+                          <span className="font-bold flex items-center gap-1 text-[11px] uppercase">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> En Proceso de Atención
+                          </span>
+                          <p className="text-[11px] text-amber-800">
+                            Tu técnico asignado <strong>{inc.operativeName}</strong> y el administrador han recibido esta solicitud. Tan pronto acudan a resolverla, registrarán la evidencia fotográfica aquí.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleShareIncidentWhatsApp(inc)}
+                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                          </button>
+                          <button
+                            onClick={() => handleSendIncidentEmail(inc)}
+                            className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Mail className="w-3.5 h-3.5" /> Correo
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedIncidentForReport(inc)}
+                            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Reporte Oficial PDF
+                          </button>
+                          {inc.photoUrl && (
+                            <button
+                              onClick={() => setViewingIncident(inc)}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                            >
+                              Foto Inicial
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 4. SECCIÓN: TÉCNICO ASIGNADO */}
       {clientSection === 'tecnico' && (
@@ -1247,6 +1486,20 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
         data={emailModalData}
         isOpen={!!emailModalData}
         onClose={() => setEmailModalData(null)}
+      />
+
+      {/* Client Report Creation Modal */}
+      <ClientReportModal
+        isOpen={showClientReportModal}
+        onClose={() => setShowClientReportModal(false)}
+        clientName={clientName}
+        clientProfile={clientProfile}
+        assignedEmployee={assignedEmployee}
+        onSubmit={(incData) => {
+          if (onClientReportIncident) {
+            onClientReportIncident(incData);
+          }
+        }}
       />
 
       {/* BÓVEDA DE RESGUARDO HISTÓRICO & AUDITORÍA MODAL */}

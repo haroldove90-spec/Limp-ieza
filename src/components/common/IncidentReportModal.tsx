@@ -119,6 +119,12 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
       <label>Técnico Operativo Responsable</label>
       <strong>${incident.operativeName}</strong>
     </div>
+    ${incident.origin === 'cliente' ? `
+    <div class="meta-item" style="grid-column: span 2; background: #eff6ff; padding: 8px 12px; border-radius: 8px;">
+      <label style="color: #1d4ed8;">ORIGEN DEL REPORTE</label>
+      <strong style="color: #1e3a8a;">Solicitud Levantada Directamente por Cliente en Sitio (Prioridad: ${(incident.priority || 'Normal').toUpperCase()})</strong>
+    </div>
+    ` : ''}
   </div>
 
   <div class="section-title">Descripción y Circunstancias del Hecho</div>
@@ -126,17 +132,33 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
     ${incident.description}
   </div>
 
-  ${incident.photoUrl ? `
-  <div class="section-title">Evidencia Fotográfica Adjunta</div>
-  <div class="photo-box">
-    <img src="${incident.photoUrl}" alt="${incident.title}" />
-  </div>
-  ` : ''}
+  <div style="display: grid; grid-template-columns: ${incident.photoUrl && incident.resolutionPhotoUrl ? '1fr 1fr' : '1fr'}; gap: 16px;">
+    ${incident.photoUrl ? `
+    <div>
+      <div class="section-title">Evidencia Inicial (${incident.origin === 'cliente' ? 'Reporte de Cliente / Antes' : 'Detección Inicial'})</div>
+      <div class="photo-box">
+        <img src="${incident.photoUrl}" alt="Evidencia Inicial" />
+      </div>
+    </div>
+    ` : ''}
 
-  ${incident.adminResolution ? `
+    ${incident.resolutionPhotoUrl ? `
+    <div>
+      <div class="section-title" style="color: #166534;">Evidencia de Solución / Atención (Después)</div>
+      <div class="photo-box" style="border: 2px solid #22c55e;">
+        <img src="${incident.resolutionPhotoUrl}" alt="Evidencia de Solución" />
+      </div>
+    </div>
+    ` : ''}
+  </div>
+
+  ${(incident.adminResolution || incident.resolutionNotes) ? `
   <div class="resolution-box">
-    <strong style="display: block; font-size: 12px; text-transform: uppercase; margin-bottom: 4px;">Dictamen de Administración / Acción Tomada:</strong>
-    <div>${incident.adminResolution}</div>
+    <strong style="display: block; font-size: 12px; text-transform: uppercase; margin-bottom: 4px;">
+      Dictamen de Atención y Resolución:
+    </strong>
+    <div>${incident.resolutionNotes || incident.adminResolution}</div>
+    ${incident.resolvedBy ? `<div style="font-size: 11px; margin-top: 6px; color: #166534;"><strong>Atendido por:</strong> ${incident.resolvedBy} ${incident.resolvedAt ? `el ${incident.resolvedAt}` : ''}</div>` : ''}
   </div>
   ` : ''}
 
@@ -264,10 +286,24 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
                 <ShieldAlert className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800">
-                  {typeLabels[incident.type] || incident.type}
-                </span>
-                <h2 className="text-base md:text-lg font-bold text-slate-900">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800">
+                    {typeLabels[incident.type] || incident.type}
+                  </span>
+                  {incident.origin === 'cliente' && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                      Solicitud de Cliente en Sitio
+                    </span>
+                  )}
+                  {incident.priority && (
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      incident.priority === 'urgente' ? 'bg-red-100 text-red-800' : incident.priority === 'alta' ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {incident.priority}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-base md:text-lg font-bold text-slate-900 mt-0.5">
                   {incident.title}
                 </h2>
               </div>
@@ -333,31 +369,61 @@ export const IncidentReportModal: React.FC<IncidentReportModalProps> = ({
             </div>
           </div>
 
-          {/* Photo Evidence */}
-          {incident.photoUrl && (
-            <div className="space-y-2">
+          {/* Photo Evidence Grid */}
+          {(incident.photoUrl || incident.resolutionPhotoUrl) && (
+            <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Evidencia Fotográfica Adjunta:
+                Resguardo Fotográfico y Evidencias:
               </h3>
-              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 max-h-72 flex items-center justify-center">
-                <img
-                  src={incident.photoUrl}
-                  alt={incident.title}
-                  className="w-full h-full max-h-72 object-contain"
-                />
+              <div className={`grid grid-cols-1 ${incident.photoUrl && incident.resolutionPhotoUrl ? 'sm:grid-cols-2' : ''} gap-4`}>
+                {incident.photoUrl && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold uppercase text-slate-600">
+                      1. Evidencia Inicial ({incident.origin === 'cliente' ? 'Reporte del Cliente' : 'Antes'})
+                    </span>
+                    <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 h-64 flex items-center justify-center">
+                      <img
+                        src={incident.photoUrl}
+                        alt="Foto inicial"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {incident.resolutionPhotoUrl && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold uppercase text-green-700 flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                      2. Evidencia de Solución (Después de la Atención)
+                    </span>
+                    <div className="rounded-2xl overflow-hidden border-2 border-green-500 bg-slate-900 h-64 flex items-center justify-center shadow-xs">
+                      <img
+                        src={incident.resolutionPhotoUrl}
+                        alt="Foto de solución"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {/* Resolution section */}
-          {incident.adminResolution && (
-            <div className="p-4.5 rounded-2xl bg-green-50/70 border border-green-200 text-sm">
-              <span className="text-xs font-bold uppercase tracking-wider text-green-900 block flex items-center gap-1.5 mb-1">
-                <CheckCircle className="w-4 h-4 text-green-600" /> Dictamen de Administración / Acción Tomada:
+          {(incident.adminResolution || incident.resolutionNotes) && (
+            <div className="p-4.5 rounded-2xl bg-green-50/70 border border-green-200 text-sm space-y-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-green-900 block flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 text-green-600" /> Dictamen de Atención y Solución Verificada:
               </span>
-              <p className="text-green-950 font-medium">
-                {incident.adminResolution}
+              <p className="text-green-950 font-medium leading-relaxed">
+                {incident.resolutionNotes || incident.adminResolution}
               </p>
+              {incident.resolvedBy && (
+                <div className="text-xs text-green-800 pt-1 border-t border-green-200/60 font-medium">
+                  Atendido y validado por: <strong>{incident.resolvedBy}</strong> {incident.resolvedAt ? `• ${incident.resolvedAt}` : ''}
+                </div>
+              )}
             </div>
           )}
 

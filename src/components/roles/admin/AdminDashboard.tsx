@@ -50,6 +50,7 @@ import {
 } from '../../../types';
 import { ImageViewerModal } from '../../common/ImageViewerModal';
 import { IncidentReportModal } from '../../common/IncidentReportModal';
+import { IncidentResolutionModal } from '../../common/IncidentResolutionModal';
 import { QuotationManager } from './QuotationManager';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 import { EvidenceUploadModal } from '../../common/EvidenceUploadModal';
@@ -84,6 +85,15 @@ interface AdminDashboardProps {
   quotations: Quotation[];
   onApproveService: (serviceId: string) => void;
   onResolveIncident: (incidentId: string, resolution: string) => void;
+  onResolveIncidentWithEvidence?: (
+    incidentId: string,
+    data: {
+      resolutionNotes: string;
+      resolutionPhotoUrl?: string;
+      resolvedBy: string;
+      resolvedByRole?: 'operativo' | 'admin';
+    }
+  ) => void;
   onUpdateSupplyStock: (supplyId: string, delta: number) => void;
   onApproveSupplyRequest: (requestId: string, status: SupplyRequest['status']) => void;
   onAddClient: (client: Omit<ClientProfile, 'id'>) => void;
@@ -111,6 +121,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   quotations,
   onApproveService,
   onResolveIncident,
+  onResolveIncidentWithEvidence,
   onUpdateSupplyStock,
   onApproveSupplyRequest,
   onAddClient,
@@ -134,6 +145,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Resolution modal state
   const [resolvingIncId, setResolvingIncId] = useState<string | null>(null);
   const [resolutionText, setResolutionText] = useState('');
+  const [resolvingIncident, setResolvingIncident] = useState<IncidentReport | null>(null);
 
   // Stock update modal
   const [stockModalSupply, setStockModalSupply] = useState<SupplyItem | null>(null);
@@ -1144,89 +1156,160 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="space-y-4">
-              {incidents.map((inc) => (
-                <div
-                  key={inc.id}
-                  className="p-5 rounded-2xl border border-orange-100 bg-orange-50/20 space-y-3"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full">
-                        {inc.type.replace('_', ' ')} • Folio #{inc.id}
+              {incidents.map((inc) => {
+                const isResolved = inc.status === 'resuelto';
+
+                return (
+                  <div
+                    key={inc.id}
+                    className={`p-5 rounded-2xl border space-y-3 transition-all ${
+                      isResolved
+                        ? 'border-green-200 bg-green-50/20'
+                        : inc.origin === 'cliente'
+                        ? 'border-orange-300 bg-orange-50/30 ring-1 ring-orange-200'
+                        : 'border-orange-100 bg-orange-50/20'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {inc.origin === 'cliente' ? (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                            <Users className="w-3 h-3 text-blue-600" /> Solicitud Cliente
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                            Hallazgo Operativo
+                          </span>
+                        )}
+
+                        {inc.priority && (
+                          <span
+                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              inc.priority === 'urgente'
+                                ? 'bg-red-100 text-red-800 border border-red-200'
+                                : inc.priority === 'alta'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {inc.priority}
+                          </span>
+                        )}
+
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-orange-800 bg-orange-100 px-2.5 py-0.5 rounded-full">
+                          {inc.type.replace('_', ' ')} • Folio #{inc.id}
+                        </span>
+                        <h4 className="font-bold text-slate-900 text-base">{inc.title}</h4>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${
+                          isResolved
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-orange-100 text-orange-800'
+                        }`}
+                      >
+                        {isResolved ? '✅ Resuelto y Verificado' : '⏳ En Seguimiento'}
                       </span>
-                      <h4 className="font-bold text-slate-900 text-base">{inc.title}</h4>
-                    </div>
-                    <span
-                      className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${
-                        inc.status === 'resuelto'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-orange-100 text-orange-800'
-                      }`}
-                    >
-                      {inc.status === 'resuelto' ? 'Resuelto' : 'En Seguimiento'}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600">{inc.description}</p>
-
-                  <div className="p-3 bg-white rounded-xl text-xs text-slate-600 flex flex-wrap justify-between gap-2 border border-slate-100">
-                    <span><strong>Sede:</strong> {inc.clientName} ({inc.location})</span>
-                    <span><strong>Técnico:</strong> {inc.operativeName}</span>
-                    <span><strong>Fecha:</strong> {inc.date} {inc.time}</span>
-                  </div>
-
-                  {inc.adminResolution && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800">
-                      <strong>Resolución Administrativa:</strong> {inc.adminResolution}
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-orange-100">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleShareIncidentWhatsApp(inc)}
-                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
-                      </button>
-                      <button
-                        onClick={() => handleSendIncidentEmail(inc)}
-                        className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <Mail className="w-3.5 h-3.5" /> Correo
-                      </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setSelectedIncidentForReport(inc)}
-                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <Printer className="w-3.5 h-3.5" /> Reporte PDF
-                      </button>
-                      {inc.photoUrl && (
+                    <p className="text-xs text-slate-600">{inc.description}</p>
+
+                    <div className="p-3 bg-white rounded-xl text-xs text-slate-600 flex flex-wrap justify-between gap-2 border border-slate-100">
+                      <span><strong>Sede / Cliente:</strong> {inc.clientName} ({inc.location})</span>
+                      <span><strong>Técnico Asignado:</strong> {inc.operativeName}</span>
+                      <span><strong>Fecha Reporte:</strong> {inc.date} {inc.time}</span>
+                    </div>
+
+                    {/* RESOLUTION STATUS WITH EVIDENCE */}
+                    {isResolved ? (
+                      <div className="p-3.5 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-900 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold flex items-center gap-1.5 uppercase text-[11px]">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                            Resolución Confirmada con Evidencia
+                          </span>
+                          {inc.resolvedAt && (
+                            <span className="text-[10px] text-green-700">{inc.resolvedAt}</span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-green-950 font-medium bg-white/70 p-2 rounded-xl border border-green-100">
+                          "{inc.resolutionNotes || inc.adminResolution}"
+                        </p>
+
+                        {inc.resolvedBy && (
+                          <div className="text-[11px] text-green-800">
+                            Atendido por: <strong>{inc.resolvedBy}</strong> ({inc.resolvedByRole === 'operativo' ? 'Técnico en Campo' : 'Dirección Operativa'})
+                          </div>
+                        )}
+
+                        {inc.resolutionPhotoUrl && (
+                          <div className="pt-1 flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-green-800">
+                              📸 Foto de Solución:
+                            </span>
+                            <button
+                              onClick={() =>
+                                setViewingIncident({
+                                  ...inc,
+                                  title: `Solución: ${inc.title}`,
+                                  photoUrl: inc.resolutionPhotoUrl!
+                                })
+                              }
+                              className="px-2.5 py-1 bg-white hover:bg-green-100 text-green-800 border border-green-300 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+                            >
+                              <Camera className="w-3 h-3 text-green-700" /> Ver Evidencia de Solución
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-orange-100">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setViewingIncident(inc)}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                          onClick={() => handleShareIncidentWhatsApp(inc)}
+                          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
                         >
-                          Ver Foto
+                          <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                         </button>
-                      )}
-                      {inc.status !== 'resuelto' && (
                         <button
-                          onClick={() => {
-                            setResolvingIncId(inc.id);
-                            setResolutionText('');
-                          }}
-                          className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+                          onClick={() => handleSendIncidentEmail(inc)}
+                          className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
                         >
-                          Registrar Solución
+                          <Mail className="w-3.5 h-3.5" /> Correo
                         </button>
-                      )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedIncidentForReport(inc)}
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" /> Reporte PDF
+                        </button>
+                        {inc.photoUrl && (
+                          <button
+                            onClick={() => setViewingIncident(inc)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                          >
+                            Foto Inicial
+                          </button>
+                        )}
+                        {!isResolved && (
+                          <button
+                            onClick={() => setResolvingIncident(inc)}
+                            className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs flex items-center gap-1.5"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Resolver con Evidencia
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -2283,44 +2366,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* MODAL: RESOLVER INCIDENCIA */}
-      {resolvingIncId && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-1">Registrar Solución a Incidencia</h3>
-            <p className="text-xs text-slate-400 mb-4">Folio: #{resolvingIncId}</p>
-
-            <form onSubmit={handleResolveIncident} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Acción tomada / Resolución:</label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Ej. Se envió técnico especializado y se reparó la cerradura con autorización del cliente."
-                  value={resolutionText}
-                  onChange={(e) => setResolutionText(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setResolvingIncId(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-green-600 text-white rounded-2xl text-xs font-bold cursor-pointer shadow-md shadow-green-200"
-                >
-                  Marcar como Resuelto
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* MODAL: RESOLVER INCIDENCIA CON EVIDENCIA FOTOGRÁFICA */}
+      {resolvingIncident && (
+        <IncidentResolutionModal
+          incident={resolvingIncident}
+          onClose={() => setResolvingIncident(null)}
+          currentUserRole="admin"
+          currentUserName="Dirección Operativa"
+          onResolve={(incId, data) => {
+            if (onResolveIncidentWithEvidence) {
+              onResolveIncidentWithEvidence(incId, data);
+            } else {
+              onResolveIncident(incId, data.resolutionNotes);
+            }
+            setResolvingIncident(null);
+          }}
+        />
       )}
 
       {/* Image Viewer Modals */}
