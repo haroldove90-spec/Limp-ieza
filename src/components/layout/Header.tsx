@@ -110,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: Workflow Button, Supabase Button, Quick Role Switcher, Profile & User Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {onOpenWorkflow && (
+        {onOpenWorkflow && currentRole === 'admin' && (
           <button
             onClick={onOpenWorkflow}
             title="Ver y descargar Flujo de Trabajo del Sistema en PDF"
@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {onOpenSupabase && (
+        {onOpenSupabase && currentRole === 'admin' && (
           <button
             onClick={onOpenSupabase}
             title="Estado y Configuración de Supabase"
