@@ -129,11 +129,12 @@ CREATE TABLE IF NOT EXISTS public.services (
     evidences JSONB DEFAULT '[]'::jsonb,
     approved_by_admin BOOLEAN DEFAULT FALSE,
     total_cost NUMERIC(12, 2) DEFAULT 0,
+    client_signature JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. TABLA DE INCIDENCIAS
+-- 4. TABLA DE INCIDENCIAS Y REPORTES DEL CLIENTE
 CREATE TABLE IF NOT EXISTS public.incidents (
     id TEXT PRIMARY KEY,
     service_id TEXT,
@@ -148,6 +149,16 @@ CREATE TABLE IF NOT EXISTS public.incidents (
     photo_url TEXT,
     status TEXT DEFAULT 'pendiente',
     admin_resolution TEXT,
+    origin TEXT DEFAULT 'operativo',
+    priority TEXT DEFAULT 'normal',
+    assigned_employee_id TEXT,
+    assigned_employee_name TEXT,
+    resolution_photo_url TEXT,
+    resolution_notes TEXT,
+    resolved_at TEXT,
+    resolved_by TEXT,
+    resolved_by_role TEXT,
+    client_rating NUMERIC(3, 1),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -268,6 +279,19 @@ CREATE TABLE IF NOT EXISTS public.quotations (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- MIGRACIONES SEGURAS POR SI YA EXISTÍAN LAS TABLAS
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS client_signature JSONB;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS origin TEXT DEFAULT 'operativo';
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'normal';
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS assigned_employee_id TEXT;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS assigned_employee_name TEXT;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS resolution_photo_url TEXT;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS resolution_notes TEXT;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS resolved_at TEXT;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS resolved_by TEXT;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS resolved_by_role TEXT;
+ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS client_rating NUMERIC(3, 1);
+
 -- POLÍTICAS ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
@@ -281,16 +305,37 @@ ALTER TABLE public.supply_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Acceso total a clientes" ON public.clients;
 CREATE POLICY "Acceso total a clientes" ON public.clients FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a empleados" ON public.employees;
 CREATE POLICY "Acceso total a empleados" ON public.employees FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a servicios" ON public.services;
 CREATE POLICY "Acceso total a servicios" ON public.services FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a incidencias" ON public.incidents;
 CREATE POLICY "Acceso total a incidencias" ON public.incidents FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a insumos" ON public.supplies;
 CREATE POLICY "Acceso total a insumos" ON public.supplies FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a kit_items" ON public.kit_items;
 CREATE POLICY "Acceso total a kit_items" ON public.kit_items FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a movimientos" ON public.warehouse_movements;
 CREATE POLICY "Acceso total a movimientos" ON public.warehouse_movements FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a reportes 3 dias" ON public.cycle_reports;
 CREATE POLICY "Acceso total a reportes 3 dias" ON public.cycle_reports FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a requerimientos" ON public.supply_requests;
 CREATE POLICY "Acceso total a requerimientos" ON public.supply_requests FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a transacciones" ON public.transactions;
 CREATE POLICY "Acceso total a transacciones" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acceso total a cotizaciones" ON public.quotations;
 CREATE POLICY "Acceso total a cotizaciones" ON public.quotations FOR ALL USING (true) WITH CHECK (true);
 
 -- REALTIME

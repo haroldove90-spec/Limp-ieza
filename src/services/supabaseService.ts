@@ -95,7 +95,8 @@ export const supabaseService = {
         tasks: s.tasks,
         evidences: s.evidences,
         approved_by_admin: s.approvedByAdmin || false,
-        total_cost: s.totalCost
+        total_cost: s.totalCost,
+        client_signature: s.clientSignature || null
       }));
       await supabase.from('services').upsert(servicesData);
 
@@ -113,7 +114,17 @@ export const supabaseService = {
         description: i.description,
         photo_url: i.photoUrl || null,
         status: i.status,
-        admin_resolution: i.adminResolution || null
+        admin_resolution: i.adminResolution || null,
+        origin: i.origin || 'operativo',
+        priority: i.priority || 'normal',
+        assigned_employee_id: i.assignedEmployeeId || null,
+        assigned_employee_name: i.assignedEmployeeName || null,
+        resolution_photo_url: i.resolutionPhotoUrl || null,
+        resolution_notes: i.resolutionNotes || i.adminResolution || null,
+        resolved_at: i.resolvedAt || null,
+        resolved_by: i.resolvedBy || null,
+        resolved_by_role: i.resolvedByRole || null,
+        client_rating: i.clientRating || null
       }));
       await supabase.from('incidents').upsert(incidentsData);
 
@@ -307,7 +318,8 @@ export const supabaseService = {
             tasks: s.tasks || [],
             evidences: s.evidences || [],
             approvedByAdmin: s.approved_by_admin,
-            totalCost: Number(s.total_cost)
+            totalCost: Number(s.total_cost),
+            clientSignature: s.client_signature || undefined
           }))
         : null,
       incidents: incidentsRes.data
@@ -324,7 +336,17 @@ export const supabaseService = {
             description: i.description,
             photoUrl: i.photo_url,
             status: i.status,
-            adminResolution: i.admin_resolution
+            adminResolution: i.admin_resolution,
+            origin: i.origin || 'operativo',
+            priority: i.priority || 'normal',
+            assignedEmployeeId: i.assigned_employee_id,
+            assignedEmployeeName: i.assigned_employee_name,
+            resolutionPhotoUrl: i.resolution_photo_url,
+            resolutionNotes: i.resolution_notes,
+            resolvedAt: i.resolved_at,
+            resolvedBy: i.resolved_by,
+            resolvedByRole: i.resolved_by_role,
+            clientRating: i.client_rating ? Number(i.client_rating) : undefined
           }))
         : null,
       supplies: suppliesRes.data
