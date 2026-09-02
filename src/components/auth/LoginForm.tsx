@@ -34,13 +34,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Quick fill helper for official test credentials
-  const handleQuickFill = (u: string, p: string) => {
-    setIdentifier(u);
-    setPassword(p);
-    setErrorMessage(null);
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -154,7 +147,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         }
         onLoginSuccess(matchedUser);
       } else {
-        setErrorMessage('Usuario o contraseña no encontrados. Verifica tus datos o usa los accesos rápidos.');
+        setErrorMessage('Usuario o contraseña no encontrados. Verifica que tus credenciales sean correctas.');
       }
     } catch (err: any) {
       setErrorMessage(`Error de autenticación: ${err.message || 'Intente nuevamente'}`);
@@ -244,58 +237,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </button>
       </form>
 
-      {/* Official Fast Login Credentials Chips */}
-      <div className="pt-4 border-t border-slate-100 space-y-2.5">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">
-          Credenciales Registradas para Acceso Rápido
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {/* Harold Anguiano (Admin) */}
-          <button
-            type="button"
-            onClick={() => handleQuickFill('haroldo90', 'Chevropar#1970')}
-            className="p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-left cursor-pointer transition-all hover:border-slate-300 group"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full bg-slate-900"></span>
-              <span className="text-[11px] font-bold text-slate-900 truncate">
-                Harold Anguiano
-              </span>
-            </div>
-            <div className="text-[10px] text-slate-500">
-              Rol: <span className="font-bold text-slate-700">Admin</span>
-            </div>
-            <div className="text-[10px] font-mono text-blue-600 truncate mt-0.5">
-              haroldo90
-            </div>
-          </button>
-
-          {/* José del Carmen Sotero (Operativo) */}
-          <button
-            type="button"
-            onClick={() => handleQuickFill('josesers', 'Sers#Segura2025!')}
-            className="p-3 bg-blue-50/50 hover:bg-blue-100/60 border border-blue-200/80 rounded-xl text-left cursor-pointer transition-all hover:border-blue-300 group"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-              <span className="text-[11px] font-bold text-slate-900 truncate">
-                José del Carmen Sotero
-              </span>
-            </div>
-            <div className="text-[10px] text-slate-500">
-              Rol: <span className="font-bold text-blue-700">Operativo</span>
-            </div>
-            <div className="text-[10px] font-mono text-blue-600 truncate mt-0.5">
-              josesers
-            </div>
-          </button>
-        </div>
-      </div>
-
       {/* Alternative: Switch to Role Selector */}
       {onSwitchToRoleSelector && (
-        <div className="pt-2 text-center">
+        <div className="pt-2 text-center border-t border-slate-100">
           <button
             type="button"
             onClick={onSwitchToRoleSelector}
