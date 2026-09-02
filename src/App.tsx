@@ -91,7 +91,29 @@ export default function App() {
     }
     return null;
   });
+
+  // Persistent authenticated identity (keeps track of who logged in even when admin tests other role views)
+  const [authenticatedUser, setAuthenticatedUser] = useState<AppUser | null>(() => {
+    try {
+      const savedAuth = localStorage.getItem('cleanpro_auth_user');
+      if (savedAuth) return JSON.parse(savedAuth);
+      const saved = localStorage.getItem('cleanpro_current_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.username !== 'carlos.mendoza' && !parsed.name?.includes('Carlos Mendoza')) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+
+  // Admin access control flag: strictly checks if the logged-in user is an administrator
+  const isAdmin = authenticatedUser?.role === 'admin' || currentUser?.role === 'admin';
 
   // In-memory application data state
   const [services, setServices] = useState<CleaningService[]>(INITIAL_SERVICES);
@@ -198,24 +220,33 @@ export default function App() {
     loadDataFromSupabase();
   }, []);
 
-  // Role switching and user synchronization
+  // Role switching and user synchronization (STRICTLY Admin only)
   const handleSelectRole = (role: UserRole) => {
+    // Only administrators can navigate across different roles
+    if (!isAdmin && authenticatedUser && role !== authenticatedUser.role) {
+      console.warn('Acceso denegado: solo el administrador general tiene permisos para navegar en todos los roles.');
+      return;
+    }
+
     setCurrentRole(role);
     if (role === 'operative') {
       setActiveTab('agenda');
-      if (!currentUser || currentUser.role !== 'operative') {
-        const jose = INITIAL_USERS.find((u) => u.username === 'josesers') || {
-          id: 'USR-JOSE-02',
-          name: 'José del Carmen Sotero',
-          username: 'josesers',
-          email: 'contacto.sers@gmail.com',
-          role: 'operative' as UserRole,
-          phone: '+52 99 3123 4567',
-          jobTitle: 'Supervisor de Operaciones y Servicios',
-          assignedZone: 'Zona Industrial y Corporativa',
-          password: 'Sers#Segura2025!',
-          status: 'activo'
-        };
+      const matching = employees.find((e) => e.id === 'EMP-04' || e.username === 'josesers');
+      if (matching) setSelectedOperativeId(matching.id);
+      // If operative user profile is needed for operative-specific UI
+      const jose = INITIAL_USERS.find((u) => u.username === 'josesers') || {
+        id: 'USR-JOSE-02',
+        name: 'José del Carmen Sotero',
+        username: 'josesers',
+        email: 'contacto.sers@gmail.com',
+        role: 'operative' as UserRole,
+        phone: '+52 99 3123 4567',
+        jobTitle: 'Supervisor de Operaciones y Servicios',
+        assignedZone: 'Zona Industrial y Corporativa',
+        password: 'Sers#Segura2025!',
+        status: 'activo'
+      };
+      if (!isAdmin) {
         setCurrentUser(jose);
         try {
           localStorage.setItem('cleanpro_current_user', JSON.stringify(jose));
@@ -225,19 +256,19 @@ export default function App() {
       }
     } else if (role === 'client') {
       setActiveTab('evidencias_cliente');
-      if (!currentUser || currentUser.role !== 'client') {
-        const clientUser = INITIAL_USERS.find((u) => u.role === 'client') || {
-          id: 'USR-CLIENT-01',
-          name: 'Lic. Laura Méndez',
-          username: 'laura_skytower',
-          email: 'admin@skytower.mx',
-          role: 'client' as UserRole,
-          phone: '+52 55 9876 5432',
-          jobTitle: 'Administradora General',
-          assignedZone: 'Oficinas Corporativas SkyTower',
-          password: 'Cliente#SkyTower2025',
-          status: 'activo'
-        };
+      const clientUser = INITIAL_USERS.find((u) => u.role === 'client') || {
+        id: 'USR-CLIENT-01',
+        name: 'Lic. Laura Méndez',
+        username: 'laura_skytower',
+        email: 'admin@skytower.mx',
+        role: 'client' as UserRole,
+        phone: '+52 55 9876 5432',
+        jobTitle: 'Administradora General',
+        assignedZone: 'Oficinas Corporativas SkyTower',
+        password: 'Cliente#SkyTower2025',
+        status: 'activo'
+      };
+      if (!isAdmin) {
         setCurrentUser(clientUser);
         try {
           localStorage.setItem('cleanpro_current_user', JSON.stringify(clientUser));
@@ -247,7 +278,14 @@ export default function App() {
       }
     } else if (role === 'admin') {
       setActiveTab('supervision_admin');
-      if (!currentUser || currentUser.role !== 'admin') {
+      if (authenticatedUser && authenticatedUser.role === 'admin') {
+        setCurrentUser(authenticatedUser);
+        try {
+          localStorage.setItem('cleanpro_current_user', JSON.stringify(authenticatedUser));
+        } catch {
+          // ignore
+        }
+      } else {
         const harold = INITIAL_USERS.find((u) => u.username === 'haroldo90') || {
           id: 'USR-HAROLD-01',
           name: 'Harold Anguiano Morales',
@@ -272,8 +310,10 @@ export default function App() {
 
   const handleLoginSuccess = (user: AppUser) => {
     setCurrentUser(user);
+    setAuthenticatedUser(user);
     try {
       localStorage.setItem('cleanpro_current_user', JSON.stringify(user));
+      localStorage.setItem('cleanpro_auth_user', JSON.stringify(user));
     } catch {
       // ignore
     }
@@ -291,6 +331,14 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentRole('home');
+    setCurrentUser(null);
+    setAuthenticatedUser(null);
+    try {
+      localStorage.removeItem('cleanpro_current_user');
+      localStorage.removeItem('cleanpro_auth_user');
+    } catch {
+      // ignore
+    }
   };
 
   const handleUpdateCurrentUser = (updatedUser: AppUser) => {
@@ -852,6 +900,8 @@ export default function App() {
         onLogout={handleLogout}
         currentUser={currentUser}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        isAdmin={isAdmin}
+        onSelectRole={handleSelectRole}
       />
 
       {/* Main Content Area */}
@@ -862,13 +912,47 @@ export default function App() {
           activeModuleName={activeModuleName}
           onLogout={handleLogout}
           clientName="Oficinas SkyTower"
-          operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'Carlos Mendoza'}
+          operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'José del Carmen Sotero'}
           onSelectRole={handleSelectRole}
           onOpenSupabase={() => setIsSupabaseModalOpen(true)}
           onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
           currentUser={currentUser}
           onOpenProfile={() => setIsProfileModalOpen(true)}
+          isAdmin={isAdmin}
         />
+
+        {/* Banner de Navegación de Administrador (Visible cuando el Administrador navega como Operativo o Cliente) */}
+        {isAdmin && currentRole !== 'admin' && (
+          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-blue-800 shadow-md sticky top-0 z-30">
+            <div className="flex items-center gap-2.5 text-xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="font-bold text-amber-300">Modo Navegación Administrador:</span>
+              <span className="text-slate-200">
+                Estás visualizando la app como{' '}
+                <strong className="text-white">
+                  {currentRole === 'operative' ? '👷 Personal Técnico Operativo (José del Carmen Sotero)' : '🏢 Portal de Cliente (Oficinas SkyTower)'}
+                </strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSelectRole(currentRole === 'operative' ? 'client' : 'operative')}
+                className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Ver como {currentRole === 'operative' ? 'Cliente' : 'Operativo'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectRole('admin')}
+                className="px-3.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-200" />
+                <span>Volver al Dashboard Admin</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Role Views */}
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
@@ -957,6 +1041,7 @@ export default function App() {
               onDeleteSupply={handleDeleteSupply}
               onPurgeMockData={handlePurgeMockData}
               onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+              onSelectRole={handleSelectRole}
             />
           )}
         </main>

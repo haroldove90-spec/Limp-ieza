@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole, AppUser } from '../../types';
-import { Sparkles, LogOut, LucideIcon, User, Settings } from 'lucide-react';
+import { Sparkles, LogOut, LucideIcon, User, Settings, ShieldCheck, HardHat, Building2 } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 
 export interface NavItem {
@@ -18,6 +18,8 @@ interface SidebarProps {
   onLogout: () => void;
   currentUser?: AppUser | null;
   onOpenProfile?: () => void;
+  isAdmin?: boolean;
+  onSelectRole?: (role: UserRole) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -27,7 +29,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   onLogout,
   currentUser,
-  onOpenProfile
+  onOpenProfile,
+  isAdmin,
+  onSelectRole
 }) => {
   const getRoleTitle = () => {
     switch (currentRole) {
@@ -143,17 +147,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        <button
-          onClick={onLogout}
-          className="w-full p-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl flex items-center justify-center gap-2.5 font-semibold text-xs shadow-md shadow-slate-200 transition-all cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4 text-blue-400" />
-          <span>Cambiar Rol</span>
-        </button>
+        {/* Admin Multi-Role Navigation (Strictly visible only if logged in user is Admin) */}
+        {isAdmin && onSelectRole && (
+          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                Navegar Roles (Admin)
+              </span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Acceso Total Concedido"></span>
+            </div>
+            <div className="grid grid-cols-1 gap-1">
+              <button
+                type="button"
+                onClick={() => onSelectRole('admin')}
+                className={`w-full py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+                  currentRole === 'admin'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                <span>Panel Administrador</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectRole('operative')}
+                className={`w-full py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+                  currentRole === 'operative'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                }`}
+              >
+                <HardHat className="w-3.5 h-3.5 text-amber-500" />
+                <span>Vista Operativa</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectRole('client')}
+                className={`w-full py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+                  currentRole === 'client'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Portal de Cliente</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={onLogout}
-          className="w-full p-2 text-red-600 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold hover:bg-red-50 transition-colors cursor-pointer"
+          className="w-full p-2.5 text-slate-600 hover:text-red-600 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold hover:bg-red-50 transition-colors cursor-pointer border border-transparent hover:border-red-200"
         >
           <LogOut className="w-3.5 h-3.5" />
           <span>Cerrar Sesión</span>

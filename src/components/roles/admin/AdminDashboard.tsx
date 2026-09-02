@@ -37,9 +37,13 @@ import {
   Database,
   Power,
   AlertCircle,
-  Boxes
+  Boxes,
+  HardHat,
+  Building2,
+  ArrowRight
 } from 'lucide-react';
 import {
+  UserRole,
   CleaningService,
   IncidentReport,
   SupplyItem,
@@ -133,6 +137,7 @@ interface AdminDashboardProps {
   onDeleteSupply?: (supplyId: string) => void;
   onPurgeMockData?: () => void;
   onOpenSupabaseModal?: () => void;
+  onSelectRole?: (role: UserRole) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -174,7 +179,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateSupply,
   onDeleteSupply,
   onPurgeMockData,
-  onOpenSupabaseModal
+  onOpenSupabaseModal,
+  onSelectRole
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
@@ -922,14 +928,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {onSelectRole && (
+            <>
+              <button
+                type="button"
+                onClick={() => onSelectRole('operative')}
+                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                title="Explorar interfaz del personal técnico operativo"
+              >
+                <HardHat className="w-3.5 h-3.5 text-blue-600" />
+                <span>Ver como Operativo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectRole('client')}
+                className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                title="Explorar portal de sedes y evidencias del cliente"
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Ver como Cliente</span>
+              </button>
+            </>
+          )}
+
           {onOpenWorkflow && (
             <button
               type="button"
               onClick={onOpenWorkflow}
-              className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Ver Flujo del Sistema</span>
+              <span>Flujo del Sistema</span>
             </button>
           )}
 
@@ -940,7 +969,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
             >
               <Database className="w-3.5 h-3.5 text-emerald-200" />
-              <span>Gestionar Supabase SQL</span>
+              <span>Gestionar Supabase</span>
             </button>
           )}
 
@@ -952,9 +981,160 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               title="Limpiar registros residuales de muestra en Supabase"
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-              <span>Purgar Datos Demo</span>
+              <span>Purgar Demo</span>
             </button>
           )}
+        </div>
+      </div>
+
+      {/* SECCIÓN PRINCIPAL: NAVEGACIÓN MULTIRROL EXCLUSIVA PARA ADMINISTRADOR */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 p-5 sm:p-6 rounded-3xl text-white border border-slate-700/60 shadow-lg space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-700/60 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-blue-500/20 text-blue-300 border border-blue-400/30 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-6 h-6 text-blue-400" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+                  Navegación de Roles y Vistas del Sistema
+                </h2>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  Acceso Exclusivo Administrador
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Como Administrador General, puedes ingresar directamente a auditar, probar e interactuar con cualquiera de las interfaces del sistema.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Usuario autenticado: <strong>Harold Anguiano</strong></span>
+          </div>
+        </div>
+
+        {/* Grid de 3 Roles del Sistema */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+          {/* 1. Rol Operativo */}
+          <div className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between transition-all hover:border-blue-400/50 group">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 text-blue-300 flex items-center justify-center">
+                  <HardHat className="w-5 h-5 text-blue-400" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-900/50 text-blue-300 border border-blue-700/50">
+                  Personal Operativo
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-white group-hover:text-blue-300 transition-colors">
+                  Técnico Operativo en Campo
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  Agenda diaria de trabajo, checklist paso a paso con evidencia fotográfica antes/después, kit diario de arranque y almacén de insumos.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 text-[11px] text-slate-300 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>Técnico asignado: <strong>José del Carmen Sotero</strong></span>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-700/50">
+              <button
+                type="button"
+                onClick={() => onSelectRole?.('operative')}
+                className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-950 transition-all group-hover:translate-y-[-1px]"
+              >
+                <HardHat className="w-4 h-4" />
+                <span>Navegar como Operativo</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Rol Cliente */}
+          <div className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between transition-all hover:border-emerald-400/50 group">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-emerald-400" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">
+                  Portal Cliente
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+                  Portal de Clientes y Sedes
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  Supervisión de evidencias fotográficas en tiempo real con geolocalización, reportes automáticos de ciclo de 3 días y acuse de calidad.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 text-[11px] text-slate-300 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>Sede conectada: <strong>Oficinas SkyTower</strong></span>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-700/50">
+              <button
+                type="button"
+                onClick={() => onSelectRole?.('client')}
+                className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-950 transition-all group-hover:translate-y-[-1px]"
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Navegar como Cliente</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Rol Administrador (Vista Actual) */}
+          <div className="bg-slate-800/80 border-2 border-blue-500/40 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute -top-6 -right-6 w-20 h-20 bg-blue-500/10 rounded-full blur-xl pointer-events-none"></div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 text-blue-400 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-blue-400" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-400/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                  Panel Activo
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-white">
+                  Dirección General SERS
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  Supervisión general, aprobación de servicios, bitácora de incidencias, directorio de asignaciones, cotizaciones, inventario y finanzas.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 text-[11px] text-slate-300 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                <span>Administrador: <strong>Harold Anguiano Morales</strong></span>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-700/50">
+              <div className="w-full py-2.5 px-3 bg-slate-900/90 text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-slate-700">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Estás en este panel</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
