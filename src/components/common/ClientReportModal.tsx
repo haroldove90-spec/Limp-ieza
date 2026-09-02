@@ -281,7 +281,7 @@ export const ClientReportModal: React.FC<ClientReportModalProps> = ({
                     Personal Asignado a tu Sede:
                   </span>
                   <p className="text-blue-700 mt-0.5">
-                    <strong>{assignedEmployee?.name || clientProfile?.assignedEmployeeName || 'Carlos Mendoza'}</strong> ({assignedEmployee?.role || 'Técnico Especialista'}) • Tel: {assignedEmployee?.phone || clientProfile?.assignedEmployeePhone || '55-4819-2033'}
+                    <strong>{assignedEmployee?.name || clientProfile?.assignedEmployeeName || 'José del Carmen Sotero'}</strong> ({assignedEmployee?.role || 'Supervisor Operativo'}) • Tel: {assignedEmployee?.phone || clientProfile?.assignedEmployeePhone || '+52 99 3123 4567'}
                   </p>
                   <span className="text-[11px] text-blue-600/80 block mt-1">
                     Al confirmar, el técnico verá esta solicitud destacada en su aplicación móvil para resolverla con evidencia fotográfica.

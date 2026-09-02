@@ -129,11 +129,11 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
   // Technician in charge
   const technicianName =
-    clientProfile?.assignedEmployeeName || assignedEmployee?.name || 'Carlos Mendoza';
+    clientProfile?.assignedEmployeeName || assignedEmployee?.name || 'José del Carmen Sotero';
   const technicianPhone =
-    clientProfile?.assignedEmployeePhone || assignedEmployee?.phone || '+52 55 6789 0123';
+    clientProfile?.assignedEmployeePhone || assignedEmployee?.phone || '+52 99 3123 4567';
   const technicianRole =
-    clientProfile?.assignedEmployeeRole || assignedEmployee?.role || 'Técnico Especialista de Limpieza';
+    clientProfile?.assignedEmployeeRole || assignedEmployee?.role || 'Supervisor Operativo';
 
   // --- EXPORT & SHARE: SERVICES ---
   const handleExportServicesExcel = () => {

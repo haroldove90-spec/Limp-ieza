@@ -65,7 +65,7 @@ export const IncidentResolutionModal: React.FC<IncidentResolutionModalProps> = (
 }) => {
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolutionPhotoUrl, setResolutionPhotoUrl] = useState('');
-  const [resolverName, setResolverName] = useState(currentUserName || 'Carlos Mendoza');
+  const [resolverName, setResolverName] = useState(currentUserName || 'José del Carmen Sotero');
   const [isCapturingCamera, setIsCapturingCamera] = useState(false);
   const [successConfirmation, setSuccessConfirmation] = useState(false);
 

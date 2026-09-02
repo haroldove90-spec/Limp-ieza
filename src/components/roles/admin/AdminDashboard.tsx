@@ -33,7 +33,11 @@ import {
   FileSpreadsheet,
   UserCheck,
   UserPlus,
-  Phone
+  Phone,
+  Database,
+  Power,
+  AlertCircle,
+  Boxes
 } from 'lucide-react';
 import {
   CleaningService,
@@ -56,6 +60,14 @@ import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal'
 import { EvidenceUploadModal } from '../../common/EvidenceUploadModal';
 import { HistoricalAuditModal } from '../../common/HistoricalAuditModal';
 import { StaffManager } from './StaffManager';
+import {
+  ClientDetailsModal,
+  EditClientModal,
+  EditServiceModal,
+  SupplyFormModal,
+  DeleteConfirmModal,
+  PurgeMockDataModal
+} from './AdminCrudModals';
 import { COMPANY_BRAND } from '../../../constants/branding';
 import {
   exportToExcel,
@@ -108,6 +120,19 @@ interface AdminDashboardProps {
   onOpenWorkflow?: () => void;
   onAddEvidence?: (serviceId: string, evidence: Omit<PhotoEvidence, 'id' | 'timestamp'>) => void;
   onUpdateEmployee?: (employee: EmployeeProfile) => void;
+  onDeleteEmployee?: (employeeId: string) => void;
+  onToggleEmployeeStatus?: (employeeId: string) => void;
+  onUpdateClient?: (client: ClientProfile) => void;
+  onDeleteClient?: (clientId: string) => void;
+  onToggleClientStatus?: (clientId: string) => void;
+  onUpdateService?: (service: CleaningService) => void;
+  onDeleteService?: (serviceId: string) => void;
+  onDeleteIncident?: (incidentId: string) => void;
+  onAddSupply?: (supply: Omit<SupplyItem, 'id'>) => void;
+  onUpdateSupply?: (supply: SupplyItem) => void;
+  onDeleteSupply?: (supplyId: string) => void;
+  onPurgeMockData?: () => void;
+  onOpenSupabaseModal?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -136,7 +161,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onAssignEmployeeToClient,
   onOpenWorkflow,
   onAddEvidence,
-  onUpdateEmployee
+  onUpdateEmployee,
+  onDeleteEmployee,
+  onToggleEmployeeStatus,
+  onUpdateClient,
+  onDeleteClient,
+  onToggleClientStatus,
+  onUpdateService,
+  onDeleteService,
+  onDeleteIncident,
+  onAddSupply,
+  onUpdateSupply,
+  onDeleteSupply,
+  onPurgeMockData,
+  onOpenSupabaseModal
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
@@ -188,6 +226,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newCustomTaskName, setNewCustomTaskName] = useState('');
   const [newCustomTaskCategory, setNewCustomTaskCategory] = useState('General');
   const [sendWhatsAppOnCreate, setSendWhatsAppOnCreate] = useState(true);
+
+  // Real Testing & CRUD state modals
+  const [viewingClient, setViewingClient] = useState<ClientProfile | null>(null);
+  const [editingClient, setEditingClient] = useState<ClientProfile | null>(null);
+  const [deletingClient, setDeletingClient] = useState<ClientProfile | null>(null);
+
+  const [editingService, setEditingService] = useState<CleaningService | null>(null);
+  const [deletingService, setDeletingService] = useState<CleaningService | null>(null);
+
+  const [deletingIncident, setDeletingIncident] = useState<IncidentReport | null>(null);
+
+  const [showNewSupplyModal, setShowNewSupplyModal] = useState(false);
+  const [editingSupply, setEditingSupply] = useState<SupplyItem | null>(null);
+  const [deletingSupply, setDeletingSupply] = useState<SupplyItem | null>(null);
+  const [newSupplyName, setNewSupplyName] = useState('');
+  const [newSupplyCategory, setNewSupplyCategory] = useState('Químicos');
+  const [newSupplyStock, setNewSupplyStock] = useState(20);
+  const [newSupplyMin, setNewSupplyMin] = useState(5);
+  const [newSupplyUnit, setNewSupplyUnit] = useState('L');
+
+  const [showPurgeModal, setShowPurgeModal] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+  const [purgeSuccess, setPurgeSuccess] = useState(false);
 
   // Dispatch & Printable Order helpers
   const handleDownloadServiceOrderPDF = (service: CleaningService) => {
@@ -776,8 +837,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       date: srvDate,
       timeSlot: srvTimeSlot,
       status: 'programado' as const,
-      operativeId: emp?.id || 'EMP-01',
-      operativeName: srvOperativeName || 'Carlos Mendoza',
+      operativeId: emp?.id || 'EMP-04',
+      operativeName: srvOperativeName || 'José del Carmen Sotero',
       specialInstructions: srvNotes,
       totalCost: client?.monthlyFee ? Math.round(client.monthlyFee / 20) : 1500,
       tasks: generatedTasks
@@ -840,6 +901,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="space-y-6 pb-24 md:pb-12">
+      {/* BARRA EXCLUSIVA ADMIN: ACCESO A BASE DE DATOS SUPABASE, FLUJO SERS Y PURGA DE DATOS DEMO */}
+      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+            <Database className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-800">Panel de Control Exclusivo Admin</h3>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                Supabase Conectado
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Modo Pruebas Reales: Personal autenticado ({employees.length} usuarios activos: Harold Anguiano y José del Carmen Sotero).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {onOpenWorkflow && (
+            <button
+              type="button"
+              onClick={onOpenWorkflow}
+              className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Ver Flujo del Sistema</span>
+            </button>
+          )}
+
+          {onOpenSupabaseModal && (
+            <button
+              type="button"
+              onClick={onOpenSupabaseModal}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Gestionar Supabase SQL</span>
+            </button>
+          )}
+
+          {onPurgeMockData && (
+            <button
+              type="button"
+              onClick={() => setShowPurgeModal(true)}
+              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Limpiar registros residuales de muestra en Supabase"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>Purgar Datos Demo</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 1. SUPERVISIÓN Y AUDITORÍA DE CALIDAD */}
       {activeTab === 'supervision_admin' && (
         <div className="space-y-6">
@@ -1034,7 +1152,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="space-y-4">
-              {services.map((service) => {
+              {services.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-700">No hay servicios programados</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    No hay servicios de limpieza activos. Puede registrar un nuevo servicio real desde la pestaña de Clientes o programarlo directamente.
+                  </p>
+                  <button
+                    onClick={() => setShowNewServiceModal(true)}
+                    className="mt-4 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Calendar className="w-4 h-4 text-blue-400" /> Programar Primer Servicio
+                  </button>
+                </div>
+              ) : (
+                services.map((service) => {
                 const completedTasks = service.tasks.filter((t) => t.completed).length;
                 const clientObj = clients.find((c) => c.name === service.clientName);
                 const srvIncidents = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
@@ -1146,6 +1279,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <CheckCircle2 className="w-4 h-4" /> Aprobar y Cerrar
                           </button>
                         )}
+
+                        {/* EDIT SERVICE BUTTON */}
+                        <button
+                          type="button"
+                          onClick={() => setEditingService(service)}
+                          className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Editar fecha, horario o técnico del servicio"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Editar
+                        </button>
+
+                        {/* DELETE SERVICE BUTTON */}
+                        {onDeleteService && (
+                          <button
+                            type="button"
+                            onClick={() => setDeletingService(service)}
+                            className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Eliminar este servicio del sistema"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1174,7 +1329,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     )}
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
 
@@ -1204,7 +1359,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="space-y-4">
-              {incidents.map((inc) => {
+              {incidents.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <AlertTriangle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-700">Sin incidencias registradas</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    El sistema no cuenta con incidencias pendientes. Las fallas o daños reportados desde campo por el personal o clientes aparecerán aquí.
+                  </p>
+                </div>
+              ) : (
+                incidents.map((inc) => {
                 const isResolved = inc.status === 'resuelto';
 
                 return (
@@ -1353,11 +1517,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             Resolver con Evidencia
                           </button>
                         )}
+                        {onDeleteIncident && (
+                          <button
+                            type="button"
+                            onClick={() => setDeletingIncident(inc)}
+                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold cursor-pointer flex items-center gap-1 transition-colors"
+                            title="Eliminar reporte de incidencia de Supabase"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         </div>
@@ -1377,6 +1551,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {onAddSupply && (
+                <button
+                  type="button"
+                  onClick={() => setShowNewSupplyModal(true)}
+                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> + Nuevo Insumo
+                </button>
+              )}
               <button
                 onClick={handleShareWarehouseWhatsApp}
                 className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
@@ -1463,16 +1646,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Central Stock Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {supplies.map((sup) => {
+            {supplies.length === 0 ? (
+              <div className="col-span-full p-8 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                <Boxes className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-700">No hay insumos registrados en inventario</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                  Agregue insumos de limpieza y comodato utilizando el botón "+ Nuevo Insumo" arriba para gestionar el stock real.
+                </p>
+                {onAddSupply && (
+                  <button
+                    onClick={() => setShowNewSupplyModal(true)}
+                    className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" /> Agregar Primer Insumo
+                  </button>
+                )}
+              </div>
+            ) : (
+              supplies.map((sup) => {
               const isLow = sup.currentStock <= sup.minimumStock;
               return (
                 <div
                   key={sup.id}
-                  className={`bg-white rounded-3xl p-6 border transition-all ${
+                  className={`bg-white rounded-3xl p-6 border transition-all space-y-3 ${
                     isLow ? 'border-orange-200 bg-orange-50/20' : 'border-slate-100'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       {sup.category}
                     </span>
@@ -1485,28 +1685,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </span>
                   </div>
 
-                  <h4 className="font-bold text-slate-900 text-base">{sup.name}</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Mínimo sugerido: {sup.minimumStock} {sup.unit}</p>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-base">{sup.name}</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Mínimo sugerido: {sup.minimumStock} {sup.unit}</p>
+                  </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                     <div>
                       <span className="text-2xl font-bold text-slate-900">{sup.currentStock}</span>
                       <span className="text-xs text-slate-400 font-medium ml-1">{sup.unit}</span>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setStockModalSupply(sup);
-                        setStockDelta(10);
-                      }}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
-                    >
-                      Ajustar Stock
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setStockModalSupply(sup);
+                          setStockDelta(10);
+                        }}
+                        className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
+                        title="Ajustar cantidad en almacén"
+                      >
+                        Ajustar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSupply(sup)}
+                        className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs cursor-pointer transition-colors"
+                        title="Editar nombre, categoría o mínimo"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      {onDeleteSupply && (
+                        <button
+                          type="button"
+                          onClick={() => setDeletingSupply(sup)}
+                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs cursor-pointer transition-colors"
+                          title="Eliminar insumo de la base de datos"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
       )}
@@ -1584,74 +1807,151 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               <div className="space-y-4">
-                {clients.map((c) => (
-                  <div
-                    key={c.id}
-                    className="p-4.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-all space-y-3 shadow-xs"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-bold text-slate-900 text-base">{c.name}</h4>
-                        <p className="text-xs text-slate-500">{c.address}</p>
-                      </div>
-                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
-                        ${c.monthlyFee.toLocaleString('es-MX')} /mes
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-slate-600 grid grid-cols-2 gap-1 py-1">
-                      <div><strong>Contacto:</strong> {c.contactPerson}</div>
-                      <div><strong>Teléfono:</strong> {c.phone}</div>
-                    </div>
-
-                    {/* ASSIGNED EMPLOYEE BADGE & ACTION */}
-                    <div className="p-3 rounded-xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                          <UserCheck className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            Técnico Asignado
-                          </p>
-                          <p className="text-xs font-bold text-slate-900">
-                            {c.assignedEmployeeName || 'Sin Asignar'}
-                          </p>
-                          {c.assignedEmployeePhone && (
-                            <p className="text-[11px] text-slate-400 font-medium">
-                              Tel: {c.assignedEmployeePhone}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                          onClick={() => downloadSystemWorkflowPDF(c.name)}
-                          className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Descargar Flujo de Trabajo PDF para este cliente"
-                        >
-                          <Download className="w-3.5 h-3.5 text-blue-400" />
-                          <span>Flujo PDF</span>
-                        </button>
-                        <button
-                          onClick={() => shareWorkflowViaWhatsApp(c.name, c.phone)}
-                          className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Enviar resumen del Flujo por WhatsApp al cliente"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>WhatsApp</span>
-                        </button>
-                        <button
-                          onClick={() => handleOpenAssignModal(c)}
-                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <UserPlus className="w-3.5 h-3.5" /> Asignar Empleado
-                        </button>
-                      </div>
-                    </div>
+                {clients.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <Building className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm font-bold text-slate-700">No hay clientes registrados</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      Haga clic en "+ Cliente" para registrar el primer cliente real en Supabase con personal asignado.
+                    </p>
+                    <button
+                      onClick={() => setShowNewClientModal(true)}
+                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Building className="w-4 h-4" /> Registrar Primer Cliente
+                    </button>
                   </div>
-                ))}
+                ) : (
+                  clients.map((c) => (
+                    <div
+                      key={c.id}
+                      className="p-4.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-blue-200 transition-all space-y-3 shadow-xs"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-slate-900 text-base">{c.name}</h4>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                c.status === 'inactivo'
+                                  ? 'bg-slate-200 text-slate-700'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {c.status === 'inactivo' ? 'Inactivo' : 'Activo'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">{c.address}</p>
+                        </div>
+                        <span className="text-xs font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
+                          ${c.monthlyFee.toLocaleString('es-MX')} /mes
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-slate-600 grid grid-cols-2 gap-1 py-1">
+                        <div><strong>Contacto:</strong> {c.contactPerson}</div>
+                        <div><strong>Teléfono:</strong> {c.phone}</div>
+                        <div><strong>Frecuencia:</strong> {c.contractFrequency}</div>
+                        <div><strong>Reporte 3 Días:</strong> {c.auto3DayReport ? 'Activado' : 'Manual'}</div>
+                      </div>
+
+                      {/* ASSIGNED EMPLOYEE BADGE & ACTION */}
+                      <div className="p-3 rounded-xl bg-white border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Técnico Asignado
+                            </p>
+                            <p className="text-xs font-bold text-slate-900">
+                              {c.assignedEmployeeName || 'Sin Asignar'}
+                            </p>
+                            {c.assignedEmployeePhone && (
+                              <p className="text-[11px] text-slate-400 font-medium">
+                                Tel: {c.assignedEmployeePhone}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            onClick={() => downloadSystemWorkflowPDF(c.name)}
+                            className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Descargar Flujo de Trabajo PDF para este cliente"
+                          >
+                            <Download className="w-3.5 h-3.5 text-blue-400" />
+                            <span>Flujo PDF</span>
+                          </button>
+                          <button
+                            onClick={() => shareWorkflowViaWhatsApp(c.name, c.phone)}
+                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Enviar resumen del Flujo por WhatsApp al cliente"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>WhatsApp</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenAssignModal(c)}
+                            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" /> Asignar Empleado
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* CRUD ACTION BAR: VER, EDITAR, DESACTIVAR/ACTIVAR, BORRAR */}
+                      <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setViewingClient(c)}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Ver ficha completa del cliente"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Ver Ficha</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingClient(c)}
+                          className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Editar datos del cliente"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Editar</span>
+                        </button>
+                        {onToggleClientStatus && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleClientStatus(c.id)}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                              c.status === 'inactivo'
+                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                                : 'bg-amber-50 hover:bg-amber-100 text-amber-700'
+                            }`}
+                            title={c.status === 'inactivo' ? 'Reactivar cliente' : 'Pausar/Desactivar cliente'}
+                          >
+                            <Power className="w-3.5 h-3.5" />
+                            <span>{c.status === 'inactivo' ? 'Activar' : 'Desactivar'}</span>
+                          </button>
+                        )}
+                        {onDeleteClient && (
+                          <button
+                            type="button"
+                            onClick={() => setDeletingClient(c)}
+                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Eliminar cliente de la base de datos"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Eliminar</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -1710,6 +2010,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           clients={clients}
           onAddEmployee={onAddEmployee}
           onUpdateEmployee={onUpdateEmployee}
+          onDeleteEmployee={onDeleteEmployee}
+          onToggleEmployeeStatus={onToggleEmployeeStatus}
         />
       )}
 
@@ -2494,6 +2796,136 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           onSaveEvidence={(srvId, ev) => {
             onAddEvidence?.(srvId, ev);
             setEvidenceUploadService(null);
+          }}
+        />
+      )}
+
+      {/* ============================================== */}
+      {/* MODALES CRUD PARA MODO PRUEBAS REALES EN SUPABASE */}
+      {/* ============================================== */}
+
+      {/* 1. VER FICHA DE CLIENTE */}
+      {viewingClient && (
+        <ClientDetailsModal
+          client={viewingClient}
+          onClose={() => setViewingClient(null)}
+          onEdit={() => {
+            const c = viewingClient;
+            setViewingClient(null);
+            setEditingClient(c);
+          }}
+          onToggleStatus={(clientId) => {
+            onToggleClientStatus?.(clientId);
+            setViewingClient(null);
+          }}
+          onDelete={() => {
+            const c = viewingClient;
+            setViewingClient(null);
+            setDeletingClient(c);
+          }}
+        />
+      )}
+
+      {/* 2. EDITAR CLIENTE */}
+      {editingClient && (
+        <EditClientModal
+          client={editingClient}
+          employees={employees}
+          onClose={() => setEditingClient(null)}
+          onSave={async (clientId, updates) => {
+            await onUpdateClient?.(clientId, updates);
+          }}
+        />
+      )}
+
+      {/* 3. ELIMINAR CLIENTE */}
+      {deletingClient && (
+        <DeleteConfirmModal
+          title="Eliminar Registro de Cliente"
+          message="¿Está seguro de eliminar a este cliente? Esta acción removerá su contrato y asignaciones de la base de datos de Supabase."
+          itemName={deletingClient.name}
+          onClose={() => setDeletingClient(null)}
+          onConfirm={async () => {
+            await onDeleteClient?.(deletingClient.id);
+          }}
+        />
+      )}
+
+      {/* 4. EDITAR SERVICIO DE LIMPIEZA */}
+      {editingService && (
+        <EditServiceModal
+          service={editingService}
+          employees={employees}
+          onClose={() => setEditingService(null)}
+          onSave={async (serviceId, updates) => {
+            await onUpdateService?.(serviceId, updates);
+          }}
+        />
+      )}
+
+      {/* 5. ELIMINAR SERVICIO DE LIMPIEZA */}
+      {deletingService && (
+        <DeleteConfirmModal
+          title="Eliminar Servicio de Limpieza"
+          message="¿Está seguro de eliminar esta orden de trabajo? Esta acción eliminará el servicio y su historial de la base de datos."
+          itemName={`${deletingService.clientName} (${deletingService.date} • ${deletingService.timeSlot})`}
+          onClose={() => setDeletingService(null)}
+          onConfirm={async () => {
+            await onDeleteService?.(deletingService.id);
+          }}
+        />
+      )}
+
+      {/* 6. ELIMINAR INCIDENCIA */}
+      {deletingIncident && (
+        <DeleteConfirmModal
+          title="Eliminar Reporte de Incidencia"
+          message="¿Está seguro de eliminar esta incidencia técnica de campo? Se removerá permanentemente de Supabase."
+          itemName={`${deletingIncident.title} (${deletingIncident.clientName})`}
+          onClose={() => setDeletingIncident(null)}
+          onConfirm={async () => {
+            await onDeleteIncident?.(deletingIncident.id);
+          }}
+        />
+      )}
+
+      {/* 7. NUEVO O EDITAR INSUMO */}
+      {(showNewSupplyModal || editingSupply) && (
+        <SupplyFormModal
+          supply={editingSupply}
+          onClose={() => {
+            setShowNewSupplyModal(false);
+            setEditingSupply(null);
+          }}
+          onSave={async (supplyData) => {
+            if (editingSupply) {
+              await onUpdateSupply?.(editingSupply.id, supplyData);
+            } else {
+              await onAddSupply?.(supplyData);
+            }
+          }}
+        />
+      )}
+
+      {/* 8. ELIMINAR INSUMO */}
+      {deletingSupply && (
+        <DeleteConfirmModal
+          title="Eliminar Insumo del Almacén"
+          message="¿Está seguro de eliminar este insumo de la base de datos de inventario central?"
+          itemName={`${deletingSupply.name} (Stock: ${deletingSupply.currentStock} ${deletingSupply.unit})`}
+          onClose={() => setDeletingSupply(null)}
+          onConfirm={async () => {
+            await onDeleteSupply?.(deletingSupply.id);
+          }}
+        />
+      )}
+
+      {/* 9. PURGA DE DATOS DE MUESTRA RESIDUALES */}
+      {showPurgeModal && (
+        <PurgeMockDataModal
+          onClose={() => setShowPurgeModal(false)}
+          onConfirm={async () => {
+            await onPurgeMockData?.();
           }}
         />
       )}

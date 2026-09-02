@@ -688,6 +688,288 @@ export const supabaseService = {
     }
   },
 
+  // Delete an employee from employees table and app_users
+  async deleteEmployee(employeeId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      await supabase.from('employees').delete().eq('id', employeeId);
+      const usrId = employeeId.startsWith('USR-') ? employeeId : `USR-${employeeId}`;
+      await supabase.from('app_users').delete().or(`id.eq.${employeeId},id.eq.${usrId}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting employee from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save or update a client
+  async saveClient(client: ClientProfile): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: client.id,
+        name: client.name,
+        contact_person: client.contactPerson,
+        email: client.email,
+        phone: client.phone,
+        address: client.address,
+        contract_frequency: client.contractFrequency,
+        auto_3day_report: client.auto3DayReport ?? true,
+        monthly_fee: client.monthlyFee || 0,
+        assigned_employee_id: client.assignedEmployeeId || null,
+        assigned_employee_name: client.assignedEmployeeName || null,
+        assigned_employee_phone: client.assignedEmployeePhone || null,
+        assigned_employee_role: client.assignedEmployeeRole || null,
+        notes: client.notes || null
+      };
+      const { error } = await supabase.from('clients').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving client to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete a client
+  async deleteClient(clientId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', clientId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting client from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save or update a service
+  async saveService(service: CleaningService): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: service.id,
+        client_name: service.clientName,
+        client_address: service.clientAddress,
+        date: service.date,
+        time_slot: service.timeSlot,
+        status: service.status,
+        operative_id: service.operativeId,
+        operative_name: service.operativeName,
+        special_instructions: service.specialInstructions || '',
+        tasks: service.tasks || [],
+        evidences: service.evidences || [],
+        approved_by_admin: service.approvedByAdmin || false,
+        total_cost: service.totalCost || 0,
+        client_signature: service.clientSignature || null
+      };
+      const { error } = await supabase.from('services').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving service to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete a service
+  async deleteService(serviceId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('services').delete().eq('id', serviceId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting service from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save or update an incident
+  async saveIncident(incident: IncidentReport): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: incident.id,
+        service_id: incident.serviceId,
+        client_name: incident.clientName,
+        location: incident.location,
+        operative_name: incident.operativeName,
+        date: incident.date,
+        time: incident.time,
+        type: incident.type,
+        title: incident.title,
+        description: incident.description,
+        photo_url: incident.photoUrl || null,
+        status: incident.status,
+        admin_resolution: incident.adminResolution || null,
+        origin: incident.origin || 'operativo',
+        priority: incident.priority || 'normal',
+        assigned_employee_id: incident.assignedEmployeeId || null,
+        assigned_employee_name: incident.assignedEmployeeName || null,
+        resolution_photo_url: incident.resolutionPhotoUrl || null,
+        resolution_notes: incident.resolutionNotes || incident.adminResolution || null,
+        resolved_at: incident.resolvedAt || null,
+        resolved_by: incident.resolvedBy || null,
+        resolved_by_role: incident.resolvedByRole || null,
+        client_rating: incident.clientRating || null
+      };
+      const { error } = await supabase.from('incidents').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving incident to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete an incident
+  async deleteIncident(incidentId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('incidents').delete().eq('id', incidentId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting incident from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save or update a supply item
+  async saveSupply(supply: SupplyItem): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: supply.id,
+        name: supply.name,
+        category: supply.category,
+        current_stock: supply.currentStock,
+        unit: supply.unit,
+        minimum_stock: supply.minimumStock,
+        cost_per_unit: supply.costPerUnit
+      };
+      const { error } = await supabase.from('supplies').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving supply to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete a supply item
+  async deleteSupply(supplyId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('supplies').delete().eq('id', supplyId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting supply from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete quotation
+  async deleteQuotation(quotationId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('quotations').delete().eq('id', quotationId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting quotation from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save quotation
+  async saveQuotation(quote: Quotation): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: quote.id,
+        folio: quote.folio,
+        date: quote.date,
+        valid_until: quote.validUntil,
+        company_name: quote.companyName,
+        company_tax_id: quote.companyTaxId,
+        company_phone: quote.companyPhone,
+        company_email: quote.companyEmail,
+        company_address: quote.companyAddress,
+        client_name: quote.clientName,
+        client_contact: quote.clientContact,
+        client_tax_id: quote.clientTaxId,
+        client_phone: quote.clientPhone,
+        client_email: quote.clientEmail,
+        client_address: quote.clientAddress,
+        items: quote.items || [],
+        subtotal: quote.subtotal,
+        tax_rate: quote.taxRate,
+        tax_amount: quote.taxAmount,
+        total: quote.total,
+        service_conditions: quote.serviceConditions,
+        payment_terms: quote.paymentTerms,
+        delivery_time: quote.deliveryTime,
+        notes: quote.notes,
+        status: quote.status
+      };
+      const { error } = await supabase.from('quotations').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving quotation to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete finance transaction
+  async deleteTransaction(transactionId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting transaction from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save finance transaction
+  async saveTransaction(f: TransactionRecord): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: f.id,
+        date: f.date,
+        type: f.type,
+        category: f.category,
+        concept: f.concept,
+        client_or_vendor: f.clientOrVendor,
+        amount: f.amount,
+        status: f.status
+      };
+      const { error } = await supabase.from('transactions').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving transaction to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Purge any legacy sample mock data from Supabase tables
+  async purgeMockDataFromDatabase(): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Mock clients
+      await supabase.from('clients').delete().in('id', ['CLI-01', 'CLI-02', 'CLI-03', 'CLI-04']);
+      // Mock services
+      await supabase.from('services').delete().in('id', ['SRV-100', 'SRV-101', 'SRV-102', 'SRV-103']);
+      // Mock incidents
+      await supabase.from('incidents').delete().in('id', ['INC-201', 'INC-202']);
+      // Mock 3day reports & requests
+      await supabase.from('cycle_reports').delete().in('id', ['RPT-3D-2026-08A', 'RPT-3D-2026-08B']);
+      await supabase.from('supply_requests').delete().in('id', ['REQ-501', 'REQ-498']);
+      // Mock employees (Carlos, Lucia, Miguel)
+      await supabase.from('employees').delete().in('id', ['EMP-01', 'EMP-02', 'EMP-03']);
+      await supabase.from('app_users').delete().in('username', ['carlos.mendoza', 'lucia.santos', 'miguel.rivas', 'cliente.skytower']);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error purging mock data from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
   // Real-time listener helper
   subscribeToChanges(onUpdate: () => void) {
     const channel = supabase

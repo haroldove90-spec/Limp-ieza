@@ -115,7 +115,7 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
       type: movementType,
       quantity: Number(movementQty),
       unit: supply.unit,
-      operativeName: operativeName || 'Carlos Mendoza',
+      operativeName: operativeName || 'José del Carmen Sotero',
       reason: movementReason || (movementType === 'salida' ? 'Toma de insumos a discreción para servicio' : 'Reingreso de insumos'),
       serviceOrLocation: movementLocation || 'Servicio en Campo'
     });
@@ -778,7 +778,7 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
                   <input
                     type="text"
                     readOnly
-                    value={operativeName || 'Carlos Mendoza'}
+                    value={operativeName || 'José del Carmen Sotero'}
                     className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-medium"
                   />
                 </div>

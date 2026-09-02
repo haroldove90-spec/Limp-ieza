@@ -35,13 +35,17 @@ interface StaffManagerProps {
   clients: ClientProfile[];
   onAddEmployee: (employee: Omit<EmployeeProfile, 'id' | 'servicesCompletedThisMonth'>) => void;
   onUpdateEmployee?: (employee: EmployeeProfile) => void;
+  onDeleteEmployee?: (employeeId: string) => void;
+  onToggleEmployeeStatus?: (employeeId: string) => void;
 }
 
 export const StaffManager: React.FC<StaffManagerProps> = ({
   employees,
   clients,
   onAddEmployee,
-  onUpdateEmployee
+  onUpdateEmployee,
+  onDeleteEmployee,
+  onToggleEmployeeStatus
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<'all' | 'admin' | 'operative'>('all');
@@ -59,6 +63,8 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [notes, setNotes] = useState('');
+  const [empStatus, setEmpStatus] = useState<'activo' | 'inactivo'>('activo');
+  const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeProfile | null>(null);
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [statusNotification, setStatusNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -101,6 +107,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     setUsername('');
     setPassword('');
     setNotes('');
+    setEmpStatus('activo');
     setShowPassword(false);
     setShowModal(true);
   };
@@ -117,8 +124,60 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     setUsername(emp.username || `user_${emp.id.toLowerCase()}`);
     setPassword(emp.password || 'Sers#Segura2025!');
     setNotes(emp.notes || '');
+    setEmpStatus(emp.status === 'inactivo' ? 'inactivo' : 'activo');
     setShowPassword(false);
     setShowModal(true);
+  };
+
+  // Toggle active/inactive status
+  const handleToggleStatus = async (emp: EmployeeProfile) => {
+    const newStatus: 'activo' | 'inactivo' = emp.status === 'inactivo' ? 'activo' : 'inactivo';
+    if (onToggleEmployeeStatus) {
+      onToggleEmployeeStatus(emp.id);
+    } else if (onUpdateEmployee) {
+      onUpdateEmployee({ ...emp, status: newStatus });
+    }
+    try {
+      await supabaseService.saveEmployee({ ...emp, status: newStatus });
+    } catch (e) {
+      console.warn('Error updating employee status in Supabase:', e);
+    }
+    setStatusNotification({
+      type: 'success',
+      text: `Estado de "${emp.name}" actualizado a ${newStatus === 'activo' ? 'Activo' : 'Inactivo'}.`
+    });
+  };
+
+  // Prompt delete
+  const handleDeleteEmployeePrompt = (emp: EmployeeProfile) => {
+    if (emp.id === 'EMP-00' || emp.username === 'haroldo90' || emp.name.toLowerCase().includes('harold')) {
+      setStatusNotification({
+        type: 'error',
+        text: 'No es posible eliminar a Harold Anguiano (Director General / Administrador Principal).'
+      });
+      return;
+    }
+    setEmployeeToDelete(emp);
+  };
+
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!employeeToDelete) return;
+    const target = employeeToDelete;
+    setEmployeeToDelete(null);
+
+    if (onDeleteEmployee) {
+      onDeleteEmployee(target.id);
+    }
+    try {
+      await supabaseService.deleteEmployee(target.id);
+    } catch (e) {
+      console.warn('Error deleting employee from Supabase:', e);
+    }
+    setStatusNotification({
+      type: 'success',
+      text: `Empleado "${target.name}" eliminado correctamente.`
+    });
   };
 
   // Build WhatsApp Credentials Message
@@ -191,7 +250,8 @@ Enlace: ${window.location.origin}`;
         jobTitle,
         username: finalUsername,
         password: finalPassword,
-        notes
+        notes,
+        status: empStatus
       };
 
       if (onUpdateEmployee) {
@@ -221,7 +281,7 @@ Enlace: ${window.location.origin}`;
         phone,
         role: jobTitle,
         assignedZone,
-        status: 'activo',
+        status: empStatus,
         jobTitle,
         username: finalUsername,
         password: finalPassword,
@@ -460,13 +520,39 @@ Enlace: ${window.location.origin}`;
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenEditModal(emp)}
-                    className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
-                    title="Editar datos y credenciales"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {/* Toggle Status button */}
+                    <button
+                      onClick={() => handleToggleStatus(emp)}
+                      className={`px-2 py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer ${
+                        emp.status === 'inactivo'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                      }`}
+                      title={emp.status === 'inactivo' ? 'Habilitar acceso' : 'Desactivar acceso temporalmente'}
+                    >
+                      {emp.status === 'inactivo' ? 'Inactivo' : 'Activo'}
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenEditModal(emp)}
+                      className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
+                      title="Editar datos y credenciales"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Delete button (protected for Harold Anguiano) */}
+                    {emp.id !== 'EMP-00' && emp.username !== 'haroldo90' && !emp.name.toLowerCase().includes('harold') && (
+                      <button
+                        onClick={() => handleDeleteEmployeePrompt(emp)}
+                        className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center cursor-pointer transition-colors"
+                        title="Eliminar empleado"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Details list */}
@@ -500,8 +586,12 @@ Enlace: ${window.location.origin}`;
                       {emp.password ? '••••••••••••' : 'No configurada'}
                     </span>
                   </div>
-                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-sans font-bold">
-                    Acceso Activo
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-sans font-bold ${
+                    emp.status === 'inactivo'
+                      ? 'text-amber-700 bg-amber-50 border-amber-200'
+                      : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                  }`}>
+                    {emp.status === 'inactivo' ? 'Acceso Inactivo' : 'Acceso Activo'}
                   </span>
                 </div>
               </div>
@@ -650,7 +740,7 @@ Enlace: ${window.location.origin}`;
                 </div>
 
                 {/* Zona Asignada */}
-                <div className="sm:col-span-2">
+                <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
                     Zona o Sede de Operación:
                   </label>
@@ -661,6 +751,21 @@ Enlace: ${window.location.origin}`;
                     onChange={(e) => setAssignedZone(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                   />
+                </div>
+
+                {/* Estado de Acceso */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Estado de Acceso:
+                  </label>
+                  <select
+                    value={empStatus}
+                    onChange={(e) => setEmpStatus(e.target.value as 'activo' | 'inactivo')}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-blue-500"
+                  >
+                    <option value="activo">Activo (Acceso Autorizado)</option>
+                    <option value="inactivo">Inactivo (Acceso Suspendido)</option>
+                  </select>
                 </div>
               </div>
 
@@ -750,6 +855,49 @@ Enlace: ${window.location.origin}`;
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {employeeToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 border border-slate-100 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">¿Eliminar Colaborador?</h3>
+                <p className="text-xs text-slate-400">Esta acción removerá el acceso al sistema</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1">
+              <p><strong>Nombre:</strong> {employeeToDelete.name}</p>
+              <p><strong>Puesto:</strong> {employeeToDelete.role}</p>
+              <p><strong>Usuario:</strong> @{employeeToDelete.username || 'sin_usuario'}</p>
+              <p className="text-[11px] text-slate-400 pt-1">
+                Se eliminará su registro de Supabase y no podrá volver a iniciar sesión.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEmployeeToDelete(null)}
+                className="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md shadow-rose-200 transition-all"
+              >
+                Sí, Eliminar Personal
+              </button>
+            </div>
           </div>
         </div>
       )}

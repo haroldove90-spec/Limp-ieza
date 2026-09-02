@@ -82,6 +82,7 @@ export interface SupplyItem {
   unit: string;
   minimumStock: number;
   costPerUnit: number;
+  status?: 'activo' | 'descontinuado';
 }
 
 export interface Cycle3DayReport {
@@ -134,6 +135,7 @@ export interface ClientProfile {
   assignedEmployeePhone?: string;
   assignedEmployeeRole?: string;
   notes?: string;
+  status?: 'activo' | 'inactivo';
 }
 
 export interface EmployeeProfile {

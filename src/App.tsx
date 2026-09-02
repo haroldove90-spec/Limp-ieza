@@ -65,13 +65,27 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('agenda');
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState<boolean>(false);
-  const [selectedOperativeId, setSelectedOperativeId] = useState<string>('EMP-01');
+  const [selectedOperativeId, setSelectedOperativeId] = useState<string>('EMP-04');
 
   // Active Authenticated User & Profile Modal
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
     try {
       const saved = localStorage.getItem('cleanpro_current_user');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Exclude legacy mock users
+        if (
+          parsed.username === 'carlos.mendoza' ||
+          parsed.username === 'lucia.santos' ||
+          parsed.username === 'miguel.rivas' ||
+          parsed.name?.includes('Carlos Mendoza') ||
+          parsed.name?.includes('Lucía Santos')
+        ) {
+          localStorage.removeItem('cleanpro_current_user');
+          return null;
+        }
+        return parsed;
+      }
     } catch {
       // ignore
     }
@@ -95,20 +109,88 @@ export default function App() {
   // Fetch Supabase data if tables exist
   const loadDataFromSupabase = async () => {
     try {
+      // Purge any legacy sample data in the database
+      supabaseService.purgeMockDataFromDatabase().catch(() => {});
+
       const data = await supabaseService.fetchAll();
-      if (data.clients && data.clients.length > 0) setClients(data.clients);
-      if (data.employees && data.employees.length > 0) setEmployees(data.employees);
-      if (data.services && data.services.length > 0) setServices(data.services);
-      if (data.incidents && data.incidents.length > 0) setIncidents(data.incidents);
+
+      // Filter out legacy mock data to ensure clean real testing
+      const isMockClient = (c: ClientProfile) =>
+        ['CLI-01', 'CLI-02', 'CLI-03', 'CLI-04'].includes(c.id) ||
+        ['skytower', 'sonrisas', 'fitzone', 'álamos', 'alamos'].some((m) =>
+          c.name.toLowerCase().includes(m)
+        );
+
+      const isMockEmployee = (e: EmployeeProfile) =>
+        ['EMP-01', 'EMP-02', 'EMP-03'].includes(e.id) ||
+        ['carlos mendoza', 'lucía santos', 'lucia santos', 'miguel ángel', 'miguel angel'].some((m) =>
+          e.name.toLowerCase().includes(m)
+        );
+
+      const isMockService = (s: CleaningService) =>
+        ['SRV-100', 'SRV-101', 'SRV-102', 'SRV-103'].includes(s.id) ||
+        ['skytower', 'sonrisas', 'fitzone', 'álamos', 'alamos'].some((m) =>
+          s.clientName.toLowerCase().includes(m)
+        );
+
+      const isMockIncident = (i: IncidentReport) =>
+        ['INC-201', 'INC-202'].includes(i.id) ||
+        ['skytower', 'sonrisas', 'fitzone'].some((m) =>
+          i.clientName.toLowerCase().includes(m)
+        );
+
+      if (data.clients) {
+        const cleanClients = data.clients.filter((c) => !isMockClient(c));
+        setClients(cleanClients);
+      }
+      if (data.employees) {
+        const cleanEmployees = data.employees.filter((e) => !isMockEmployee(e));
+        // Always ensure Harold and José exist
+        const hasHarold = cleanEmployees.some(
+          (e) => e.id === 'EMP-00' || e.username === 'haroldo90'
+        );
+        const hasJose = cleanEmployees.some(
+          (e) => e.id === 'EMP-04' || e.username === 'josesers'
+        );
+        const finalEmployees = [...cleanEmployees];
+        if (!hasHarold) {
+          const harold = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-00')!;
+          finalEmployees.unshift(harold);
+        }
+        if (!hasJose) {
+          const jose = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-04')!;
+          finalEmployees.push(jose);
+        }
+        setEmployees(finalEmployees);
+      }
+      if (data.services) {
+        const cleanServices = data.services.filter((s) => !isMockService(s));
+        setServices(cleanServices);
+      }
+      if (data.incidents) {
+        const cleanIncidents = data.incidents.filter((i) => !isMockIncident(i));
+        setIncidents(cleanIncidents);
+      }
       if (data.supplies && data.supplies.length > 0) setSupplies(data.supplies);
       if (data.kitItems && data.kitItems.length > 0) setKitItems(data.kitItems);
-      if (data.warehouseMovements && data.warehouseMovements.length > 0) setWarehouseMovements(data.warehouseMovements);
+      if (data.warehouseMovements && data.warehouseMovements.length > 0)
+        setWarehouseMovements(data.warehouseMovements);
       if (data.cycleReports && data.cycleReports.length > 0) setCycleReports(data.cycleReports);
-      if (data.supplyRequests && data.supplyRequests.length > 0) setSupplyRequests(data.supplyRequests);
+      if (data.supplyRequests && data.supplyRequests.length > 0)
+        setSupplyRequests(data.supplyRequests);
       if (data.finances && data.finances.length > 0) setFinances(data.finances);
       if (data.quotations && data.quotations.length > 0) setQuotations(data.quotations);
     } catch {
       // Keep local state on error
+    }
+  };
+
+  const handlePurgeMockData = async () => {
+    try {
+      await supabaseService.purgeMockDataFromDatabase();
+      await loadDataFromSupabase();
+    } catch (err) {
+      console.error('Error al purgar datos demo:', err);
     }
   };
 
@@ -241,6 +323,7 @@ export default function App() {
     setEmployees((prev) =>
       prev.map((e) => (e.id === updatedEmployee.id ? updatedEmployee : e))
     );
+    supabaseService.saveEmployee(updatedEmployee).catch((err) => console.error('Error actualizando empleado:', err));
     if (
       currentUser &&
       (currentUser.username === updatedEmployee.username || currentUser.email === updatedEmployee.email)
@@ -487,6 +570,32 @@ export default function App() {
       id: `CLI-${(clients.length + 1).toString().padStart(2, '0')}`
     };
     setClients((prev) => [...prev, newCli]);
+    supabaseService.saveClient(newCli).catch((err) => console.error('Error guardando cliente:', err));
+  };
+
+  const handleUpdateClient = (updatedClient: ClientProfile) => {
+    setClients((prev) =>
+      prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
+    );
+    supabaseService.saveClient(updatedClient).catch((err) => console.error('Error actualizando cliente:', err));
+  };
+
+  const handleDeleteClient = (clientId: string) => {
+    setClients((prev) => prev.filter((c) => c.id !== clientId));
+    supabaseService.deleteClient(clientId).catch((err) => console.error('Error eliminando cliente:', err));
+  };
+
+  const handleToggleClientStatus = (clientId: string) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id !== clientId) return c;
+        const currentStatus = (c as any).status || 'activo';
+        const newStatus = currentStatus === 'activo' ? 'inactivo' : 'activo';
+        const updated = { ...c, status: newStatus as any };
+        supabaseService.saveClient(updated).catch((err) => console.error('Error cambiando estatus cliente:', err));
+        return updated;
+      })
+    );
   };
 
   const handleAddEmployee = (
@@ -498,6 +607,24 @@ export default function App() {
       servicesCompletedThisMonth: 0
     };
     setEmployees((prev) => [...prev, newEmp]);
+    supabaseService.saveEmployee(newEmp).catch((err) => console.error('Error guardando empleado:', err));
+  };
+
+  const handleDeleteEmployee = (employeeId: string) => {
+    setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+    supabaseService.deleteEmployee(employeeId).catch((err) => console.error('Error eliminando empleado:', err));
+  };
+
+  const handleToggleEmployeeStatus = (employeeId: string) => {
+    setEmployees((prev) =>
+      prev.map((e) => {
+        if (e.id !== employeeId) return e;
+        const newStatus = e.status === 'activo' ? 'inactivo' : 'activo';
+        const updated = { ...e, status: newStatus as 'activo' | 'inactivo' };
+        supabaseService.saveEmployee(updated).catch((err) => console.error('Error cambiando estatus empleado:', err));
+        return updated;
+      })
+    );
   };
 
   const handleAddService = (
@@ -518,6 +645,45 @@ export default function App() {
       approvedByAdmin: false
     };
     setServices((prev) => [newSrv, ...prev]);
+    supabaseService.saveService(newSrv).catch((err) => console.error('Error guardando servicio:', err));
+  };
+
+  const handleUpdateService = (updatedService: CleaningService) => {
+    setServices((prev) =>
+      prev.map((s) => (s.id === updatedService.id ? updatedService : s))
+    );
+    supabaseService.saveService(updatedService).catch((err) => console.error('Error actualizando servicio:', err));
+  };
+
+  const handleDeleteService = (serviceId: string) => {
+    setServices((prev) => prev.filter((s) => s.id !== serviceId));
+    supabaseService.deleteService(serviceId).catch((err) => console.error('Error eliminando servicio:', err));
+  };
+
+  const handleDeleteIncident = (incidentId: string) => {
+    setIncidents((prev) => prev.filter((i) => i.id !== incidentId));
+    supabaseService.deleteIncident(incidentId).catch((err) => console.error('Error eliminando incidencia:', err));
+  };
+
+  const handleAddSupply = (supply: Omit<SupplyItem, 'id'>) => {
+    const newSup: SupplyItem = {
+      ...supply,
+      id: `SUP-${(supplies.length + 1).toString().padStart(2, '0')}`
+    };
+    setSupplies((prev) => [...prev, newSup]);
+    supabaseService.saveSupply(newSup).catch((err) => console.error('Error guardando insumo:', err));
+  };
+
+  const handleUpdateSupply = (updatedSupply: SupplyItem) => {
+    setSupplies((prev) =>
+      prev.map((s) => (s.id === updatedSupply.id ? updatedSupply : s))
+    );
+    supabaseService.saveSupply(updatedSupply).catch((err) => console.error('Error actualizando insumo:', err));
+  };
+
+  const handleDeleteSupply = (supplyId: string) => {
+    setSupplies((prev) => prev.filter((s) => s.id !== supplyId));
+    supabaseService.deleteSupply(supplyId).catch((err) => console.error('Error eliminando insumo:', err));
   };
 
   const handleSaveClientSignature = (
@@ -646,7 +812,7 @@ export default function App() {
   const activeNavItem = navItems.find((item) => item.id === activeTab);
   const activeModuleName = activeNavItem?.name || 'Panel de Control';
 
-  const currentClientProfile = clients.find((c) => c.name.includes('SkyTower')) || clients[0];
+  const currentClientProfile = clients[0];
   const assignedEmp = employees.find(
     (e) => e.id === currentClientProfile?.assignedEmployeeId || e.name === currentClientProfile?.assignedEmployeeName
   ) || employees[0];
@@ -718,7 +884,7 @@ export default function App() {
               clients={clients}
               selectedOperativeId={selectedOperativeId}
               onSelectOperative={setSelectedOperativeId}
-              operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'Carlos Mendoza'}
+              operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'José del Carmen Sotero'}
               onUpdateServiceStatus={handleUpdateServiceStatus}
               onToggleTask={handleToggleTask}
               onAddEvidence={handleAddEvidence}
@@ -741,7 +907,7 @@ export default function App() {
               incidents={incidents}
               cycleReports={cycleReports}
               supplyRequests={supplyRequests}
-              clientName="Oficinas Corporativas SkyTower"
+              clientName={currentClientProfile?.name || 'Cliente Corporativo SERS'}
               clientProfile={currentClientProfile}
               assignedEmployee={assignedEmp}
               onEmitSupplyRequest={handleEmitSupplyRequest}
@@ -778,6 +944,19 @@ export default function App() {
               onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
               onAddEvidence={handleAddEvidence}
               onUpdateEmployee={handleUpdateEmployee}
+              onDeleteEmployee={handleDeleteEmployee}
+              onToggleEmployeeStatus={handleToggleEmployeeStatus}
+              onUpdateClient={handleUpdateClient}
+              onDeleteClient={handleDeleteClient}
+              onToggleClientStatus={handleToggleClientStatus}
+              onUpdateService={handleUpdateService}
+              onDeleteService={handleDeleteService}
+              onDeleteIncident={handleDeleteIncident}
+              onAddSupply={handleAddSupply}
+              onUpdateSupply={handleUpdateSupply}
+              onDeleteSupply={handleDeleteSupply}
+              onPurgeMockData={handlePurgeMockData}
+              onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
             />
           )}
         </main>
