@@ -26,16 +26,39 @@ CREATE TABLE IF NOT EXISTS public.clients (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. EMPLEADOS
+-- 2. EMPLEADOS Y PERSONAL
 CREATE TABLE IF NOT EXISTS public.employees (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT DEFAULT 'Técnico Especialista de Limpieza',
+    job_title TEXT,
     phone TEXT,
     email TEXT,
     assigned_zone TEXT,
     status TEXT DEFAULT 'activo',
     services_completed_this_month INTEGER DEFAULT 0,
+    username TEXT,
+    password TEXT,
+    avatar_url TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.1 USUARIOS Y ACCESOS DEL SISTEMA
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'operative',
+    job_title TEXT,
+    phone TEXT,
+    assigned_zone TEXT,
+    avatar_url TEXT,
+    status TEXT DEFAULT 'activo',
+    notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

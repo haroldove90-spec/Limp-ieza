@@ -145,6 +145,28 @@ export interface EmployeeProfile {
   assignedZone: string;
   status: 'activo' | 'inactivo';
   servicesCompletedThisMonth: number;
+  username?: string;
+  password?: string;
+  avatarUrl?: string;
+  notes?: string;
+  jobTitle?: string;
+  createdAt?: string;
+}
+
+export interface AppUser {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+  password: string;
+  role: 'admin' | 'operative' | 'client';
+  jobTitle?: string;
+  phone: string;
+  assignedZone?: string;
+  avatarUrl?: string;
+  status: 'activo' | 'inactivo';
+  notes?: string;
+  createdAt?: string;
 }
 
 export interface TransactionRecord {

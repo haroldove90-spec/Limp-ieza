@@ -1,6 +1,16 @@
 import React from 'react';
-import { UserRole } from '../../types';
-import { Sparkles, LogOut, HardHat, Building2, ShieldCheck, User, ChevronDown, Database, FileText } from 'lucide-react';
+import { UserRole, AppUser } from '../../types';
+import {
+  Sparkles,
+  LogOut,
+  HardHat,
+  Building2,
+  ShieldCheck,
+  User,
+  ChevronDown,
+  Database,
+  FileText
+} from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 
 interface HeaderProps {
@@ -12,6 +22,8 @@ interface HeaderProps {
   onOpenWorkflow?: () => void;
   clientName?: string;
   operativeName?: string;
+  currentUser?: AppUser | null;
+  onOpenProfile?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,38 +34,40 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSupabase,
   onOpenWorkflow,
   clientName,
-  operativeName
+  operativeName,
+  currentUser,
+  onOpenProfile
 }) => {
   const getRoleInfo = () => {
     switch (currentRole) {
       case 'operative':
         return {
           label: 'Operativo',
-          name: operativeName || 'Carlos Mendoza',
-          roleDesc: 'Técnico de Limpieza',
+          name: currentUser?.name || operativeName || 'José del Carmen Sotero',
+          roleDesc: currentUser?.jobTitle || 'Técnico Especialista de Limpieza',
           icon: HardHat,
           badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
         };
       case 'client':
         return {
           label: 'Cliente',
-          name: clientName || 'Oficinas SkyTower',
-          roleDesc: 'Sede Principal',
+          name: currentUser?.name || clientName || 'Oficinas SkyTower',
+          roleDesc: currentUser?.jobTitle || 'Sede Principal',
           icon: Building2,
           badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
         };
       case 'admin':
         return {
           label: 'Administrador',
-          name: 'Carlos Méndez',
-          roleDesc: 'Dirección Operativa',
+          name: currentUser?.name || 'Harold Anguiano Morales',
+          roleDesc: currentUser?.jobTitle || 'Dirección General SERS',
           icon: ShieldCheck,
           badgeColor: 'bg-slate-100 text-slate-800 border-slate-200'
         };
       default:
         return {
           label: 'Usuario',
-          name: 'Usuario',
+          name: currentUser?.name || 'Usuario',
           roleDesc: 'General',
           icon: User,
           badgeColor: 'bg-slate-50 text-slate-600 border-slate-200'
@@ -94,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Workflow Button, Supabase Button, Quick Role Switcher & User Profile */}
+      {/* Right: Workflow Button, Supabase Button, Quick Role Switcher, Profile & User Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
         {onOpenWorkflow && (
           <button
@@ -155,23 +169,59 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        <div className="text-right hidden sm:block">
-          <p className="text-sm font-semibold text-slate-800 leading-tight">
-            {roleInfo.name}
-          </p>
-          <p className="text-xs text-slate-400 font-medium">
-            {roleInfo.roleDesc}
-          </p>
-        </div>
+        {/* User Profile Card Button */}
+        {onOpenProfile ? (
+          <button
+            onClick={onOpenProfile}
+            title="Ver y editar Mi Perfil (foto, clave y datos)"
+            className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200 text-left"
+          >
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-bold text-slate-800 leading-tight">
+                {roleInfo.name}
+              </p>
+              <p className="text-[10px] text-blue-600 font-semibold">
+                Mi Perfil
+              </p>
+            </div>
 
-        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-100 border-2 border-white shadow-sm flex items-center justify-center text-slate-700 font-bold text-sm">
-          {roleInfo.name.charAt(0)}
-        </div>
+            <div className="relative">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-slate-100 border-2 border-white shadow-sm flex items-center justify-center text-slate-700 font-bold text-sm">
+                {currentUser?.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={roleInfo.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  roleInfo.name.charAt(0)
+                )}
+              </div>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white absolute bottom-0 right-0"></span>
+            </div>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-semibold text-slate-800 leading-tight">
+                {roleInfo.name}
+              </p>
+              <p className="text-xs text-slate-400 font-medium">
+                {roleInfo.roleDesc}
+              </p>
+            </div>
+
+            <div className="w-10 h-10 rounded-full bg-slate-100 border-2 border-white shadow-sm flex items-center justify-center text-slate-700 font-bold text-sm">
+              {roleInfo.name.charAt(0)}
+            </div>
+          </div>
+        )}
 
         {/* Switch Role / Logout button */}
         <button
           onClick={onLogout}
-          title="Cambiar Rol"
+          title="Cambiar Rol / Salir"
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-sm cursor-pointer transition-colors"
         >
           <Sparkles className="w-3.5 h-3.5 text-blue-400" />
@@ -182,4 +232,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-

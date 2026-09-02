@@ -1,6 +1,6 @@
 import React from 'react';
-import { UserRole } from '../../types';
-import { Sparkles, LogOut, LucideIcon } from 'lucide-react';
+import { UserRole, AppUser } from '../../types';
+import { Sparkles, LogOut, LucideIcon, User, Settings } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 
 export interface NavItem {
@@ -16,6 +16,8 @@ interface SidebarProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
   onLogout: () => void;
+  currentUser?: AppUser | null;
+  onOpenProfile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -23,7 +25,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   navItems,
   activeTab,
   onTabChange,
-  onLogout
+  onLogout,
+  currentUser,
+  onOpenProfile
 }) => {
   const getRoleTitle = () => {
     switch (currentRole) {
@@ -39,10 +43,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="hidden md:flex flex-col w-72 bg-white border-r border-slate-200 h-screen sticky top-0 shrink-0 select-none justify-between py-6 px-6">
+    <aside className="hidden md:flex flex-col w-72 bg-white border-r border-slate-200 h-screen sticky top-0 shrink-0 select-none justify-between py-6 px-6 overflow-y-auto">
       <div>
         {/* Brand Header with Sers Logo */}
-        <div className="flex items-center gap-3 mb-8 pb-5 border-b border-slate-100">
+        <div className="flex items-center gap-3 mb-6 pb-5 border-b border-slate-100">
           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center p-1 border border-slate-100 shadow-sm shrink-0 overflow-hidden">
             <img
               src={COMPANY_BRAND.logoUrl}
@@ -64,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation List */}
         <nav className="space-y-1.5">
           <div className="px-3 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-            Módulos
+            Módulos Principales
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -102,20 +106,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Bottom Switch Role / Logout area */}
-      <div className="space-y-2 pt-6 border-t border-slate-100">
+      {/* Bottom Profile & Actions Area */}
+      <div className="space-y-3 pt-4 border-t border-slate-100">
+        {/* Profile Card Button */}
+        {onOpenProfile && (
+          <button
+            onClick={onOpenProfile}
+            className="w-full p-2.5 rounded-2xl bg-slate-50 hover:bg-blue-50/70 border border-slate-200/70 hover:border-blue-200 text-left transition-all cursor-pointer group flex items-center justify-between"
+            title="Abrir Mi Perfil (foto, clave, datos)"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 border-2 border-white shadow-xs shrink-0 flex items-center justify-center font-bold text-slate-700 text-sm">
+                {currentUser?.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  currentUser?.name.charAt(0) || 'U'
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-700">
+                  {currentUser?.name || 'Mi Perfil'}
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  @{currentUser?.username || 'usuario'}
+                </p>
+              </div>
+            </div>
+            <div className="w-7 h-7 rounded-lg bg-white group-hover:bg-blue-600 text-slate-400 group-hover:text-white flex items-center justify-center shadow-xs transition-colors shrink-0">
+              <User className="w-3.5 h-3.5" />
+            </div>
+          </button>
+        )}
+
         <button
           onClick={onLogout}
-          className="w-full p-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl flex items-center justify-center gap-3 font-semibold text-sm shadow-lg shadow-slate-200 transition-all cursor-pointer"
+          className="w-full p-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl flex items-center justify-center gap-2.5 font-semibold text-xs shadow-md shadow-slate-200 transition-all cursor-pointer"
         >
           <Sparkles className="w-4 h-4 text-blue-400" />
           <span>Cambiar Rol</span>
         </button>
+
         <button
           onClick={onLogout}
-          className="w-full p-2.5 text-red-600 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold hover:bg-red-50 transition-colors cursor-pointer"
+          className="w-full p-2 text-red-600 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold hover:bg-red-50 transition-colors cursor-pointer"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-3.5 h-3.5" />
           <span>Cerrar Sesión</span>
         </button>
       </div>

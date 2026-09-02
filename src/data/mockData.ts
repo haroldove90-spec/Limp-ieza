@@ -7,6 +7,7 @@ import {
   SupplyRequest,
   ClientProfile,
   EmployeeProfile,
+  AppUser,
   TransactionRecord,
   WarehouseMovement,
   Quotation
@@ -308,6 +309,34 @@ export const INITIAL_CLIENTS: ClientProfile[] = [
 
 export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
   {
+    id: 'EMP-00',
+    name: 'Harold Anguiano Morales',
+    role: 'Director General / Administrador',
+    phone: '+52 55 1234 5678',
+    email: 'haroldo90@hotmail.com',
+    assignedZone: 'Oficina Central / Todas las Zonas',
+    status: 'activo',
+    servicesCompletedThisMonth: 0,
+    username: 'haroldo90',
+    password: 'Chevropar#1970',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    notes: 'Administrador General del Sistema SERS Soluciones Operativas'
+  },
+  {
+    id: 'EMP-04',
+    name: 'José del Carmen Sotero',
+    role: 'Supervisor Operativo / Especialista',
+    phone: '+52 99 3123 4567',
+    email: 'contacto.sers@gmail.com',
+    assignedZone: 'Zona Industrial y Corporativa',
+    status: 'activo',
+    servicesCompletedThisMonth: 38,
+    username: 'josesers',
+    password: 'Sers#Segura2025!',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    notes: 'Supervisor Operativo en Sitio y Coordinador de Insumos'
+  },
+  {
     id: 'EMP-01',
     name: 'Carlos Mendoza',
     role: 'Técnico Especialista de Limpieza',
@@ -315,7 +344,11 @@ export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
     email: 'carlos.mendoza@limpiezapro.com',
     assignedZone: 'Corredor Reforma / Centro',
     status: 'activo',
-    servicesCompletedThisMonth: 34
+    servicesCompletedThisMonth: 34,
+    username: 'carlos.mendoza',
+    password: 'Carlos#Operativo2025',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
+    notes: 'Especialista en desinfección de oficinas corporativas'
   },
   {
     id: 'EMP-02',
@@ -325,7 +358,11 @@ export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
     email: 'lucia.santos@limpiezapro.com',
     assignedZone: 'Zona Sur / Del Valle',
     status: 'activo',
-    servicesCompletedThisMonth: 41
+    servicesCompletedThisMonth: 41,
+    username: 'lucia.santos',
+    password: 'Lucia#Sers2025!',
+    avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&auto=format&fit=crop&q=80',
+    notes: 'Especialista en áreas de vestidores y gimnasios'
   },
   {
     id: 'EMP-03',
@@ -335,7 +372,70 @@ export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
     email: 'miguel.rivas@limpiezapro.com',
     assignedZone: 'Zona Poniente / Polanco',
     status: 'activo',
-    servicesCompletedThisMonth: 29
+    servicesCompletedThisMonth: 29,
+    username: 'miguel.rivas',
+    password: 'Miguel#Sers2025!',
+    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&auto=format&fit=crop&q=80',
+    notes: 'Especialista en pulido de pisos y maquinaria pesada'
+  }
+];
+
+export const INITIAL_USERS: AppUser[] = [
+  {
+    id: 'USR-01',
+    name: 'Harold Anguiano Morales',
+    email: 'haroldo90@hotmail.com',
+    username: 'haroldo90',
+    password: 'Chevropar#1970',
+    role: 'admin',
+    jobTitle: 'Director General / Administrador',
+    phone: '+52 55 1234 5678',
+    assignedZone: 'Oficina Central / Todas las Zonas',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    status: 'activo',
+    notes: 'Acceso total y administración central de la plataforma SERS'
+  },
+  {
+    id: 'USR-02',
+    name: 'José del Carmen Sotero',
+    email: 'contacto.sers@gmail.com',
+    username: 'josesers',
+    password: 'Sers#Segura2025!',
+    role: 'operative',
+    jobTitle: 'Supervisor Operativo y Técnico Especialista',
+    phone: '+52 99 3123 4567',
+    assignedZone: 'Zona Industrial y Corporativa',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    status: 'activo',
+    notes: 'Supervisión en campo, bitácoras fotográficas y control de almacén'
+  },
+  {
+    id: 'USR-03',
+    name: 'Carlos Mendoza',
+    email: 'carlos.mendoza@limpiezapro.com',
+    username: 'carlos.mendoza',
+    password: 'Carlos#Operativo2025',
+    role: 'operative',
+    jobTitle: 'Técnico Especialista de Limpieza',
+    phone: '+52 55 6789 0123',
+    assignedZone: 'Corredor Reforma / Centro',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
+    status: 'activo',
+    notes: 'Operativo líder asignado a Oficinas SkyTower'
+  },
+  {
+    id: 'USR-04',
+    name: 'Lic. Sofía Martínez',
+    email: 'smartinez@skytower.com',
+    username: 'cliente.skytower',
+    password: 'SkyTower#Cliente2025',
+    role: 'client',
+    jobTitle: 'Gerente Administrativa - SkyTower',
+    phone: '+52 55 4321 9876',
+    assignedZone: 'Paseo de la Reforma #505',
+    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
+    status: 'activo',
+    notes: 'Portal de cliente y autorización de insumos 3 días'
   }
 ];
 

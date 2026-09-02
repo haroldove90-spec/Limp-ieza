@@ -12,7 +12,9 @@ import {
   Shield,
   Layers,
   X,
-  Code
+  Code,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { supabaseService } from '../../services/supabaseService';
 
@@ -39,8 +41,12 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   });
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [clearMessage, setClearMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'sql'>('info');
+  const [copiedClean, setCopiedClean] = useState(false);
+  const [copiedUsersSql, setCopiedUsersSql] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'sql' | 'users_sql' | 'clean'>('info');
 
   const projectId = 'ksnvpnvpajhujmwutumh';
   const supabaseUrl = 'https://ksnvpnvpajhujmwutumh.supabase.co';
@@ -68,6 +74,23 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
     const res = await supabaseService.seedAllData();
     setSeedMessage(res.message);
     setSeeding(false);
+    if (res.success && onDataSync) {
+      onDataSync();
+    }
+  };
+
+  const handleClearData = async (preserveCatalog: boolean) => {
+    const confirmMsg = preserveCatalog
+      ? '¿Estás seguro de que deseas eliminar los servicios, reportes e incidencias de prueba? Se conservará el catálogo de clientes, empleados e insumos.'
+      : '⚠️ ATENCIÓN: Esta acción vaciará completamente TODAS las tablas en Supabase. ¿Deseas continuar?';
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    setClearing(true);
+    setClearMessage(null);
+    const res = await supabaseService.clearAllData(preserveCatalog);
+    setClearMessage(res.message);
+    setClearing(false);
     if (res.success && onDataSync) {
       onDataSync();
     }
@@ -351,6 +374,173 @@ ALTER PUBLICATION supabase_realtime ADD TABLE
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const cleanSqlScript = `-- ==============================================================================
+-- CLEANPRO / SERS - SCRIPT PARA VACIAR / LIMPIAR DATOS DE MUESTRA
+-- Proyecto: ksnvpnvpajhujmwutumh
+-- ==============================================================================
+
+-- OPCIÓN 1: VACIADO TOTAL (RECOMENDADO PARA INICIAR PRODUCCIÓN EN LIMPIO)
+-- Mantiene todas las tablas, columnas y políticas RLS intactas, solo vacía los registros.
+TRUNCATE TABLE 
+    public.services,
+    public.incidents,
+    public.cycle_reports,
+    public.supply_requests,
+    public.warehouse_movements,
+    public.transactions,
+    public.quotations,
+    public.kit_items,
+    public.supplies,
+    public.employees,
+    public.clients
+RESTART IDENTITY CASCADE;
+
+-- OPCIÓN 2: LIMPIEZA OPERATIVA (BORRAR SERVICIOS E INCIDENCIAS, CONSERVAR CATÁLOGOS)
+/*
+DELETE FROM public.services;
+DELETE FROM public.incidents;
+DELETE FROM public.cycle_reports;
+DELETE FROM public.supply_requests;
+DELETE FROM public.warehouse_movements;
+DELETE FROM public.transactions;
+DELETE FROM public.quotations;
+*/`;
+
+  const copyCleanToClipboard = () => {
+    navigator.clipboard.writeText(cleanSqlScript);
+    setCopiedClean(true);
+    setTimeout(() => setCopiedClean(false), 2500);
+  };
+
+  const usersCredentialsSqlScript = `-- ==============================================================================
+-- CLEANPRO / SERS SOLUCIONES OPERATIVAS
+-- SCRIPT DE MÓDULO PERSONAL Y CREDENCIALES DE ACCESO
+-- ==============================================================================
+
+-- 1. TABLA DE USUARIOS Y ACCESOS DEL SISTEMA
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'operative',
+    job_title TEXT,
+    phone TEXT,
+    assigned_zone TEXT,
+    avatar_url TEXT,
+    status TEXT DEFAULT 'activo',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. AMPLIAR TABLA EMPLEADOS
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS password TEXT;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS job_title TEXT;
+
+-- 3. POLÍTICAS RLS (Permitir lectura y actualización por la app)
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir lectura completa de app_users" ON public.app_users;
+CREATE POLICY "Permitir lectura completa de app_users" ON public.app_users FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Permitir insercion en app_users" ON public.app_users;
+CREATE POLICY "Permitir insercion en app_users" ON public.app_users FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Permitir actualizacion en app_users" ON public.app_users;
+CREATE POLICY "Permitir actualizacion en app_users" ON public.app_users FOR UPDATE USING (true);
+
+-- 4. INSERTAR CREDENCIALES OFICIALES SOLICITADAS
+INSERT INTO public.app_users (
+    id, name, email, username, password, role, job_title, phone, assigned_zone, status, notes
+) VALUES 
+-- 1. Harold Anguiano Morales (Admin)
+(
+    'USR-HAROLD-01',
+    'Harold Anguiano Morales',
+    'haroldo90@hotmail.com',
+    'haroldo90',
+    'Chevropar#1970',
+    'admin',
+    'Director General / Administrador',
+    '+52 55 1234 5678',
+    'Oficina Central / Todas las Zonas',
+    'activo',
+    'Administrador Principal SERS'
+),
+-- 2. José del Carmen Sotero (Operativo / Supervisor con clave segura generada)
+(
+    'USR-JOSE-02',
+    'José del Carmen Sotero',
+    'contacto.sers@gmail.com',
+    'josesers',
+    'Sers#Segura2025!',
+    'operative',
+    'Supervisor Operativo / Técnico Especialista',
+    '+52 99 3123 4567',
+    'Zona Industrial y Corporativa',
+    'activo',
+    'Supervisor Operativo en Sitio'
+)
+ON CONFLICT (username) DO UPDATE SET
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    password = EXCLUDED.password,
+    role = EXCLUDED.role,
+    job_title = EXCLUDED.job_title,
+    phone = EXCLUDED.phone,
+    assigned_zone = EXCLUDED.assigned_zone,
+    status = EXCLUDED.status,
+    notes = EXCLUDED.notes,
+    updated_at = NOW();
+
+-- 5. SINCRONIZAR A TABLA EMPLEADOS
+INSERT INTO public.employees (
+    id, name, role, phone, email, assigned_zone, status, services_completed_this_month, username, password, notes
+) VALUES
+(
+    'EMP-00',
+    'Harold Anguiano Morales',
+    'Director General / Administrador',
+    '+52 55 1234 5678',
+    'haroldo90@hotmail.com',
+    'Oficina Central / Todas las Zonas',
+    'activo',
+    0,
+    'haroldo90',
+    'Chevropar#1970',
+    'Administrador General del Sistema'
+),
+(
+    'EMP-04',
+    'José del Carmen Sotero',
+    'Supervisor Operativo / Especialista',
+    '+52 99 3123 4567',
+    'contacto.sers@gmail.com',
+    'Zona Industrial y Corporativa',
+    'activo',
+    38,
+    'josesers',
+    'Sers#Segura2025!',
+    'Supervisor Operativo en Sitio'
+)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    phone = EXCLUDED.phone,
+    email = EXCLUDED.email,
+    username = EXCLUDED.username,
+    password = EXCLUDED.password,
+    status = EXCLUDED.status,
+    updated_at = NOW();`;
+
+  const copyUsersSqlToClipboard = () => {
+    navigator.clipboard.writeText(usersCredentialsSqlScript);
+    setCopiedUsersSql(true);
+    setTimeout(() => setCopiedUsersSql(false), 2500);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -395,7 +585,27 @@ ALTER PUBLICATION supabase_realtime ADD TABLE
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Code className="w-4 h-4" /> Script SQL para Supabase
+            <Code className="w-4 h-4" /> Script Completo
+          </button>
+          <button
+            onClick={() => setActiveTab('users_sql')}
+            className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+              activeTab === 'users_sql'
+                ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-xs'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Shield className="w-4 h-4 text-blue-600" /> Credenciales & Personal SQL
+          </button>
+          <button
+            onClick={() => setActiveTab('clean')}
+            className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+              activeTab === 'clean'
+                ? 'border-red-600 text-red-700 bg-white rounded-t-xl shadow-xs'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Trash2 className="w-4 h-4 text-red-500" /> Limpiar Datos
           </button>
         </div>
 
@@ -531,6 +741,169 @@ ALTER PUBLICATION supabase_realtime ADD TABLE
                 <pre className="font-mono text-xs text-emerald-400 whitespace-pre leading-relaxed">
                   {sqlScript}
                 </pre>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'users_sql' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50/80 p-4 rounded-2xl border border-blue-100">
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">
+                    Credenciales Oficiales y Tabla de Usuarios
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Crea la tabla <code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono">app_users</code> e inserta las credenciales de <strong>Harold Anguiano</strong> y <strong>José del Carmen Sotero</strong>.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href="https://supabase.com/dashboard/project/ksnvpnvpajhujmwutumh/sql/new"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Abrir SQL Editor
+                  </a>
+                  <button
+                    onClick={copyUsersSqlToClipboard}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      copiedUsersSql
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                    }`}
+                  >
+                    {copiedUsersSql ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copiedUsersSql ? '¡Copiado!' : 'Copiar Script Credenciales'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary cards of users created */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+                  <span className="font-bold text-slate-900 block">👑 Harold Anguiano Morales (Admin)</span>
+                  <div className="text-slate-600">Usuario: <strong className="font-mono text-blue-700">haroldo90</strong></div>
+                  <div className="text-slate-600">Clave: <strong className="font-mono text-slate-800">Chevropar#1970</strong></div>
+                  <div className="text-slate-500 text-[11px]">Correo: haroldo90@hotmail.com</div>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+                  <span className="font-bold text-slate-900 block">👷 José del Carmen Sotero (Operativo)</span>
+                  <div className="text-slate-600">Usuario: <strong className="font-mono text-blue-700">josesers</strong></div>
+                  <div className="text-slate-600">Clave Segura: <strong className="font-mono text-emerald-700">Sers#Segura2025!</strong></div>
+                  <div className="text-slate-500 text-[11px]">Correo: contacto.sers@gmail.com</div>
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl bg-slate-950 p-4 border border-slate-800 max-h-72 overflow-y-auto">
+                <pre className="font-mono text-xs text-blue-300 whitespace-pre leading-relaxed">
+                  {usersCredentialsSqlScript}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'clean' && (
+            <div className="space-y-6">
+              {/* Alert card */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-900">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <strong className="font-bold block text-amber-950">Limpieza y Preparación para Producción</strong>
+                  <p>
+                    Usa esta sección para eliminar los registros de prueba que se cargaron al inicializar el sistema. 
+                    Tus tablas, columnas, esquemas y políticas de seguridad (RLS) se mantendrán intactas.
+                  </p>
+                </div>
+              </div>
+
+              {/* Status message */}
+              {clearMessage && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs rounded-xl font-medium flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  {clearMessage}
+                </div>
+              )}
+
+              {/* One-click actions directly from app */}
+              <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">
+                  Opción 1: Limpieza en 1 Clic desde esta aplicación
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleClearData(true)}
+                    disabled={clearing}
+                    className="p-4 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-2xl font-bold text-xs flex flex-col items-start gap-1 cursor-pointer transition-all disabled:opacity-50 text-left"
+                  >
+                    <span className="flex items-center gap-1.5 font-bold text-amber-950">
+                      <Trash2 className="w-4 h-4 text-amber-700" />
+                      Borrar Solo Operaciones
+                    </span>
+                    <span className="text-[11px] text-amber-700 font-normal">
+                      Elimina servicios, incidencias y transacciones. Conserva clientes, técnicos e insumos.
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleClearData(false)}
+                    disabled={clearing}
+                    className="p-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-xs flex flex-col items-start gap-1 cursor-pointer shadow-md shadow-red-200 transition-all disabled:opacity-50 text-left"
+                  >
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <Trash2 className="w-4 h-4 text-white" />
+                      Vaciar Todas las Tablas (Limpieza Total)
+                    </span>
+                    <span className="text-[11px] text-red-100 font-normal">
+                      Borra absolutamente todo para empezar desde cero con clientes y datos 100% reales.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* SQL script for running in Supabase */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">
+                      Opción 2: Script SQL para ejecutar en Supabase (TRUNCATE)
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Si prefieres vaciar la base de datos directamente desde el Editor SQL de Supabase:
+                    </p>
+                  </div>
+                  <button
+                    onClick={copyCleanToClipboard}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      copiedClean
+                        ? 'bg-red-600 text-white shadow-md shadow-red-200'
+                        : 'bg-red-50 hover:bg-red-100 text-red-700 border border-red-200'
+                    }`}
+                  >
+                    {copiedClean ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copiedClean ? '¡SQL Copiado!' : 'Copiar SQL de Limpieza'}
+                  </button>
+                </div>
+
+                <div className="relative rounded-2xl bg-slate-950 p-4 border border-slate-800 max-h-60 overflow-y-auto">
+                  <pre className="font-mono text-xs text-amber-400 whitespace-pre leading-relaxed">
+                    {cleanSqlScript}
+                  </pre>
+                </div>
+
+                <div className="flex justify-end">
+                  <a
+                    href="https://supabase.com/dashboard/project/ksnvpnvpajhujmwutumh/sql/new"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Abrir SQL Editor en Supabase
+                  </a>
+                </div>
               </div>
             </div>
           )}

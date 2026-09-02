@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_URL } from '../lib/supabase';
+export { supabase, SUPABASE_URL };
 import {
   CleaningService,
   IncidentReport,
@@ -8,6 +9,7 @@ import {
   SupplyRequest,
   ClientProfile,
   EmployeeProfile,
+  AppUser,
   TransactionRecord,
   WarehouseMovement,
   Quotation
@@ -21,6 +23,7 @@ import {
   INITIAL_SUPPLY_REQUESTS,
   INITIAL_CLIENTS,
   INITIAL_EMPLOYEES,
+  INITIAL_USERS,
   INITIAL_FINANCES,
   INITIAL_WAREHOUSE_MOVEMENTS,
   INITIAL_QUOTATIONS
@@ -68,7 +71,7 @@ export const supabaseService = {
       }));
       await supabase.from('clients').upsert(clientsData);
 
-      // 2. Employees
+      // 2. Employees & Staff
       const employeesData = INITIAL_EMPLOYEES.map((e) => ({
         id: e.id,
         name: e.name,
@@ -77,9 +80,35 @@ export const supabaseService = {
         email: e.email,
         assigned_zone: e.assignedZone,
         status: e.status,
-        services_completed_this_month: e.servicesCompletedThisMonth
+        services_completed_this_month: e.servicesCompletedThisMonth,
+        username: e.username || null,
+        password: e.password || null,
+        avatar_url: e.avatarUrl || null,
+        notes: e.notes || null,
+        job_title: e.jobTitle || e.role || null
       }));
       await supabase.from('employees').upsert(employeesData);
+
+      // 2.1 App Users (Authentication & Roles)
+      try {
+        const usersData = INITIAL_USERS.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          username: u.username,
+          password: u.password,
+          role: u.role,
+          job_title: u.jobTitle || null,
+          phone: u.phone,
+          assigned_zone: u.assignedZone || null,
+          avatar_url: u.avatarUrl || null,
+          status: u.status,
+          notes: u.notes || null
+        }));
+        await supabase.from('app_users').upsert(usersData);
+      } catch (userErr) {
+        console.warn('Tabla app_users aún no creada o error al sembrar usuarios:', userErr);
+      }
 
       // 3. Services
       const servicesData = INITIAL_SERVICES.map((s) => ({
@@ -245,6 +274,40 @@ export const supabaseService = {
     }
   },
 
+  // Clear data from Supabase
+  async clearAllData(preserveCatalog: boolean = false): Promise<{ success: boolean; message: string }> {
+    try {
+      const operationalTables = [
+        'services',
+        'incidents',
+        'warehouse_movements',
+        'cycle_reports',
+        'supply_requests',
+        'transactions',
+        'quotations'
+      ];
+      const catalogTables = preserveCatalog ? [] : ['kit_items', 'supplies', 'employees', 'clients', 'app_users'];
+      const allTables = [...operationalTables, ...catalogTables];
+
+      for (const table of allTables) {
+        try {
+          await supabase.from(table).delete().neq('id', '___force_delete_all_rows___');
+        } catch (tableErr) {
+          // Table may not exist yet, continue
+        }
+      }
+
+      return {
+        success: true,
+        message: preserveCatalog
+          ? 'Registros operativos de prueba eliminados (se preservó el catálogo de clientes, empleados e insumos).'
+          : 'Todas las tablas de Supabase han sido vaciadas exitosamente. La base de datos está lista para producción.'
+      };
+    } catch (err: any) {
+      return { success: false, message: `Error al limpiar datos: ${err.message}` };
+    }
+  },
+
   // Fetch all data from Supabase
   async fetchAll() {
     const [
@@ -258,7 +321,8 @@ export const supabaseService = {
       cycleRes,
       requestsRes,
       financesRes,
-      quotationsRes
+      quotationsRes,
+      usersRes
     ] = await Promise.all([
       supabase.from('clients').select('*').order('name'),
       supabase.from('employees').select('*').order('name'),
@@ -270,7 +334,8 @@ export const supabaseService = {
       supabase.from('cycle_reports').select('*').order('generated_date', { ascending: false }),
       supabase.from('supply_requests').select('*').order('request_date', { ascending: false }),
       supabase.from('transactions').select('*').order('date', { ascending: false }),
-      supabase.from('quotations').select('*').order('date', { ascending: false })
+      supabase.from('quotations').select('*').order('date', { ascending: false }),
+      supabase.from('app_users').select('*').order('name')
     ]);
 
     return {
@@ -301,7 +366,12 @@ export const supabaseService = {
             email: e.email,
             assignedZone: e.assigned_zone,
             status: e.status,
-            servicesCompletedThisMonth: e.services_completed_this_month
+            servicesCompletedThisMonth: e.services_completed_this_month,
+            username: e.username || undefined,
+            password: e.password || undefined,
+            avatarUrl: e.avatar_url || undefined,
+            notes: e.notes || undefined,
+            jobTitle: e.job_title || undefined
           }))
         : null,
       services: servicesRes.data
@@ -452,8 +522,170 @@ export const supabaseService = {
             notes: q.notes,
             status: q.status
           }))
+        : null,
+      users: usersRes?.data
+        ? usersRes.data.map((u: any): AppUser => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            username: u.username,
+            password: u.password,
+            role: u.role,
+            jobTitle: u.job_title || undefined,
+            phone: u.phone,
+            assignedZone: u.assigned_zone || undefined,
+            avatarUrl: u.avatar_url || undefined,
+            status: u.status || 'activo',
+            notes: u.notes || undefined,
+            createdAt: u.created_at || undefined
+          }))
         : null
     };
+  },
+
+  // Save or update an employee
+  async saveEmployee(emp: EmployeeProfile): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: emp.id,
+        name: emp.name,
+        role: emp.role,
+        phone: emp.phone,
+        email: emp.email,
+        assigned_zone: emp.assignedZone,
+        status: emp.status,
+        services_completed_this_month: emp.servicesCompletedThisMonth,
+        username: emp.username || null,
+        password: emp.password || null,
+        avatar_url: emp.avatarUrl || null,
+        notes: emp.notes || null,
+        job_title: emp.jobTitle || emp.role || null,
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabase.from('employees').upsert(payload);
+      if (error) throw error;
+
+      // Also upsert to app_users if has username and password
+      if (emp.username && emp.password) {
+        try {
+          const userPayload = {
+            id: emp.id.startsWith('USR-') ? emp.id : `USR-${emp.id}`,
+            name: emp.name,
+            email: emp.email,
+            username: emp.username,
+            password: emp.password,
+            role: emp.role.toLowerCase().includes('admin') ? 'admin' : 'operative',
+            job_title: emp.jobTitle || emp.role,
+            phone: emp.phone,
+            assigned_zone: emp.assignedZone,
+            avatar_url: emp.avatarUrl,
+            status: emp.status,
+            notes: emp.notes,
+            updated_at: new Date().toISOString()
+          };
+          await supabase.from('app_users').upsert(userPayload);
+        } catch (uErr) {
+          console.warn('Could not sync to app_users table:', uErr);
+        }
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving employee to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save or update an AppUser directly
+  async saveAppUser(user: AppUser): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        password: user.password,
+        role: user.role,
+        job_title: user.jobTitle || null,
+        phone: user.phone,
+        assigned_zone: user.assignedZone || null,
+        avatar_url: user.avatarUrl || null,
+        status: user.status,
+        notes: user.notes || null,
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabase.from('app_users').upsert(payload);
+      if (error) throw error;
+
+      // Also sync to employees if operative or admin
+      if (user.role === 'operative' || user.role === 'admin') {
+        try {
+          const empPayload = {
+            id: user.id.replace('USR-', 'EMP-'),
+            name: user.name,
+            role: user.jobTitle || (user.role === 'admin' ? 'Administrador' : 'Técnico Especialista'),
+            phone: user.phone,
+            email: user.email,
+            assigned_zone: user.assignedZone || 'Zona General',
+            status: user.status,
+            services_completed_this_month: 0,
+            username: user.username,
+            password: user.password,
+            avatar_url: user.avatarUrl,
+            notes: user.notes,
+            job_title: user.jobTitle,
+            updated_at: new Date().toISOString()
+          };
+          await supabase.from('employees').upsert(empPayload);
+        } catch (eErr) {
+          console.warn('Could not sync to employees table:', eErr);
+        }
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving app_user to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Update profile data (photo, name, password, etc)
+  async updateUserProfile(userId: string, data: Partial<AppUser>): Promise<{ success: boolean; error?: string }> {
+    try {
+      const updateData: any = { updated_at: new Date().toISOString() };
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.email !== undefined) updateData.email = data.email;
+      if (data.phone !== undefined) updateData.phone = data.phone;
+      if (data.password !== undefined) updateData.password = data.password;
+      if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+      if (data.jobTitle !== undefined) updateData.job_title = data.jobTitle;
+
+      try {
+        await supabase.from('app_users').update(updateData).eq('id', userId);
+      } catch (uErr) {
+        console.warn('app_users update:', uErr);
+      }
+
+      // Also update in employees if matches
+      try {
+        const empUpdateData: any = { updated_at: new Date().toISOString() };
+        if (data.name !== undefined) empUpdateData.name = data.name;
+        if (data.email !== undefined) empUpdateData.email = data.email;
+        if (data.phone !== undefined) empUpdateData.phone = data.phone;
+        if (data.password !== undefined) empUpdateData.password = data.password;
+        if (data.avatarUrl !== undefined) empUpdateData.avatar_url = data.avatarUrl;
+        if (data.notes !== undefined) empUpdateData.notes = data.notes;
+        
+        await supabase.from('employees').update(empUpdateData).or(`id.eq.${userId},username.eq.${data.username || ''}`);
+      } catch (eErr) {
+        console.warn('employees update:', eErr);
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   },
 
   // Real-time listener helper

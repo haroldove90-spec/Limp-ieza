@@ -55,6 +55,7 @@ import { QuotationManager } from './QuotationManager';
 import { EmailSenderModal, EmailModalData } from '../../common/EmailSenderModal';
 import { EvidenceUploadModal } from '../../common/EvidenceUploadModal';
 import { HistoricalAuditModal } from '../../common/HistoricalAuditModal';
+import { StaffManager } from './StaffManager';
 import { COMPANY_BRAND } from '../../../constants/branding';
 import {
   exportToExcel,
@@ -106,6 +107,7 @@ interface AdminDashboardProps {
   onAssignEmployeeToClient?: (clientId: string, employeeId: string) => void;
   onOpenWorkflow?: () => void;
   onAddEvidence?: (serviceId: string, evidence: Omit<PhotoEvidence, 'id' | 'timestamp'>) => void;
+  onUpdateEmployee?: (employee: EmployeeProfile) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -133,7 +135,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateQuotationStatus,
   onAssignEmployeeToClient,
   onOpenWorkflow,
-  onAddEvidence
+  onAddEvidence,
+  onUpdateEmployee
 }) => {
   const [viewingEvidence, setViewingEvidence] = useState<PhotoEvidence | null>(null);
   const [viewingIncident, setViewingIncident] = useState<IncidentReport | null>(null);
@@ -1653,6 +1656,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* MÓDULO PERSONAL, CREDENCIALES & WHATSAPP */}
+      {activeTab === 'personal_admin' && (
+        <StaffManager
+          employees={employees}
+          clients={clients}
+          onAddEmployee={onAddEmployee}
+          onUpdateEmployee={onUpdateEmployee}
+        />
       )}
 
       {/* 4. FINANZAS Y BALANCE */}

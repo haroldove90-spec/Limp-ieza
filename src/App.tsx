@@ -13,7 +13,8 @@ import {
   PhotoEvidence,
   WarehouseMovement,
   Quotation,
-  ServiceTask
+  ServiceTask,
+  AppUser
 } from './types';
 import {
   INITIAL_SERVICES,
@@ -26,10 +27,12 @@ import {
   INITIAL_EMPLOYEES,
   INITIAL_FINANCES,
   INITIAL_WAREHOUSE_MOVEMENTS,
-  INITIAL_QUOTATIONS
+  INITIAL_QUOTATIONS,
+  INITIAL_USERS
 } from './data/mockData';
 import { supabaseService } from './services/supabaseService';
 import { SupabaseModal } from './components/common/SupabaseModal';
+import { ProfileModal } from './components/common/ProfileModal';
 
 import { RoleSelectorHome } from './components/common/RoleSelectorHome';
 import { SystemWorkflowModal } from './components/common/SystemWorkflowModal';
@@ -51,7 +54,9 @@ import {
   Users,
   DollarSign,
   FileText,
-  Boxes
+  Boxes,
+  Building,
+  User as UserIcon
 } from 'lucide-react';
 
 export default function App() {
@@ -61,6 +66,18 @@ export default function App() {
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState<boolean>(false);
   const [selectedOperativeId, setSelectedOperativeId] = useState<string>('EMP-01');
+
+  // Active Authenticated User & Profile Modal
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('cleanpro_current_user');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
   // In-memory application data state
   const [services, setServices] = useState<CleaningService[]>(INITIAL_SERVICES);
@@ -99,16 +116,152 @@ export default function App() {
     loadDataFromSupabase();
   }, []);
 
-  // Role switching
+  // Role switching and user synchronization
   const handleSelectRole = (role: UserRole) => {
     setCurrentRole(role);
-    if (role === 'operative') setActiveTab('agenda');
-    else if (role === 'client') setActiveTab('evidencias_cliente');
-    else if (role === 'admin') setActiveTab('supervision_admin');
+    if (role === 'operative') {
+      setActiveTab('agenda');
+      if (!currentUser || currentUser.role !== 'operative') {
+        const jose = INITIAL_USERS.find((u) => u.username === 'josesers') || {
+          id: 'USR-JOSE-02',
+          name: 'José del Carmen Sotero',
+          username: 'josesers',
+          email: 'contacto.sers@gmail.com',
+          role: 'operative' as UserRole,
+          phone: '+52 99 3123 4567',
+          jobTitle: 'Supervisor de Operaciones y Servicios',
+          assignedZone: 'Zona Industrial y Corporativa',
+          password: 'Sers#Segura2025!',
+          status: 'activo'
+        };
+        setCurrentUser(jose);
+        try {
+          localStorage.setItem('cleanpro_current_user', JSON.stringify(jose));
+        } catch {
+          // ignore
+        }
+      }
+    } else if (role === 'client') {
+      setActiveTab('evidencias_cliente');
+      if (!currentUser || currentUser.role !== 'client') {
+        const clientUser = INITIAL_USERS.find((u) => u.role === 'client') || {
+          id: 'USR-CLIENT-01',
+          name: 'Lic. Laura Méndez',
+          username: 'laura_skytower',
+          email: 'admin@skytower.mx',
+          role: 'client' as UserRole,
+          phone: '+52 55 9876 5432',
+          jobTitle: 'Administradora General',
+          assignedZone: 'Oficinas Corporativas SkyTower',
+          password: 'Cliente#SkyTower2025',
+          status: 'activo'
+        };
+        setCurrentUser(clientUser);
+        try {
+          localStorage.setItem('cleanpro_current_user', JSON.stringify(clientUser));
+        } catch {
+          // ignore
+        }
+      }
+    } else if (role === 'admin') {
+      setActiveTab('supervision_admin');
+      if (!currentUser || currentUser.role !== 'admin') {
+        const harold = INITIAL_USERS.find((u) => u.username === 'haroldo90') || {
+          id: 'USR-HAROLD-01',
+          name: 'Harold Anguiano Morales',
+          username: 'haroldo90',
+          email: 'haroldo90@hotmail.com',
+          role: 'admin' as UserRole,
+          phone: '+52 55 1234 5678',
+          jobTitle: 'Dirección General / Administrador',
+          assignedZone: 'Oficina Central / Todas las Zonas',
+          password: 'Chevropar#1970',
+          status: 'activo'
+        };
+        setCurrentUser(harold);
+        try {
+          localStorage.setItem('cleanpro_current_user', JSON.stringify(harold));
+        } catch {
+          // ignore
+        }
+      }
+    }
+  };
+
+  const handleLoginSuccess = (user: AppUser) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('cleanpro_current_user', JSON.stringify(user));
+    } catch {
+      // ignore
+    }
+    setCurrentRole(user.role);
+    if (user.role === 'operative') {
+      setActiveTab('agenda');
+      const matching = employees.find((e) => e.username === user.username || e.email === user.email);
+      if (matching) setSelectedOperativeId(matching.id);
+    } else if (user.role === 'client') {
+      setActiveTab('evidencias_cliente');
+    } else if (user.role === 'admin') {
+      setActiveTab('supervision_admin');
+    }
   };
 
   const handleLogout = () => {
     setCurrentRole('home');
+  };
+
+  const handleUpdateCurrentUser = (updatedUser: AppUser) => {
+    setCurrentUser(updatedUser);
+    try {
+      localStorage.setItem('cleanpro_current_user', JSON.stringify(updatedUser));
+    } catch {
+      // ignore
+    }
+    setEmployees((prev) =>
+      prev.map((e) => {
+        if (e.username === updatedUser.username || e.email === updatedUser.email) {
+          return {
+            ...e,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            phone: updatedUser.phone || e.phone,
+            jobTitle: updatedUser.jobTitle || e.jobTitle,
+            avatarUrl: updatedUser.avatarUrl || e.avatarUrl,
+            password: updatedUser.password || e.password,
+            notes: updatedUser.notes || e.notes
+          };
+        }
+        return e;
+      })
+    );
+  };
+
+  const handleUpdateEmployee = (updatedEmployee: EmployeeProfile) => {
+    setEmployees((prev) =>
+      prev.map((e) => (e.id === updatedEmployee.id ? updatedEmployee : e))
+    );
+    if (
+      currentUser &&
+      (currentUser.username === updatedEmployee.username || currentUser.email === updatedEmployee.email)
+    ) {
+      const syncUser: AppUser = {
+        ...currentUser,
+        name: updatedEmployee.name,
+        email: updatedEmployee.email,
+        phone: updatedEmployee.phone,
+        jobTitle: updatedEmployee.jobTitle,
+        avatarUrl: updatedEmployee.avatarUrl,
+        password: updatedEmployee.password,
+        notes: updatedEmployee.notes
+      };
+      setCurrentUser(syncUser);
+      try {
+        localStorage.setItem('cleanpro_current_user', JSON.stringify(syncUser));
+      } catch {
+        // ignore
+      }
+    }
   };
 
   // Operative Handlers
@@ -478,9 +631,10 @@ export default function App() {
       case 'admin':
         return [
           { id: 'supervision_admin', name: 'Supervisión', icon: ShieldCheck, badgeCount: services.filter((s) => !s.approvedByAdmin).length },
+          { id: 'personal_admin', name: 'Personal & WhatsApp', icon: Users },
+          { id: 'operacion_admin', name: 'Clientes & Sedes', icon: Building },
           { id: 'cotizaciones_admin', name: 'Cotizaciones', icon: FileText, badgeCount: quotations.filter((q) => q.status === 'borrador').length },
           { id: 'insumos_admin', name: 'Insumos e Inv.', icon: Package, badgeCount: supplyRequests.filter((r) => r.status === 'pendiente').length },
-          { id: 'operacion_admin', name: 'Operación', icon: Users },
           { id: 'finanzas_admin', name: 'Finanzas', icon: DollarSign }
         ];
       default:
@@ -503,6 +657,7 @@ export default function App() {
       <>
         <RoleSelectorHome
           onSelectRole={handleSelectRole}
+          onLoginSuccess={handleLoginSuccess}
           onOpenSupabase={() => setIsSupabaseModalOpen(true)}
           onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
         />
@@ -529,6 +684,8 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onLogout={handleLogout}
+        currentUser={currentUser}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -543,6 +700,8 @@ export default function App() {
           onSelectRole={handleSelectRole}
           onOpenSupabase={() => setIsSupabaseModalOpen(true)}
           onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
+          currentUser={currentUser}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
         />
 
         {/* Dynamic Role Views */}
@@ -618,6 +777,7 @@ export default function App() {
               onAssignEmployeeToClient={handleAssignEmployeeToClient}
               onOpenWorkflow={() => setIsWorkflowModalOpen(true)}
               onAddEvidence={handleAddEvidence}
+              onUpdateEmployee={handleUpdateEmployee}
             />
           )}
         </main>
@@ -643,6 +803,29 @@ export default function App() {
         onClose={() => setIsWorkflowModalOpen(false)}
         clientName={currentRole === 'client' ? 'Oficinas Corporativas SkyTower' : 'Estimado Cliente'}
       />
+
+      {/* Universal User Profile Modal */}
+      {isProfileModalOpen && (
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          currentUser={
+            currentUser || {
+              id: currentRole === 'admin' ? 'USR-HAROLD-01' : 'USR-JOSE-02',
+              name: currentRole === 'admin' ? 'Harold Anguiano Morales' : 'José del Carmen Sotero',
+              username: currentRole === 'admin' ? 'haroldo90' : 'josesers',
+              email: currentRole === 'admin' ? 'haroldo90@hotmail.com' : 'contacto.sers@gmail.com',
+              role: (currentRole === 'home' ? 'admin' : currentRole) as any,
+              phone: currentRole === 'admin' ? '+52 55 1234 5678' : '+52 99 3123 4567',
+              jobTitle: currentRole === 'admin' ? 'Dirección General SERS' : 'Supervisor Operativo',
+              assignedZone: currentRole === 'admin' ? 'Oficina Central / Todas las Zonas' : 'Zona Industrial y Corporativa',
+              password: currentRole === 'admin' ? 'Chevropar#1970' : 'Sers#Segura2025!',
+              status: 'activo'
+            }
+          }
+          onUpdateUser={handleUpdateCurrentUser}
+        />
+      )}
     </div>
   );
 }
