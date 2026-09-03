@@ -1,6 +1,6 @@
 {
-  "name": "Sers Soluciones Operativas",
-  "description": "Plataforma integral de gestión de servicios, control de calidad, evidencias antes/después, reportes de insumos y cotizaciones para Sers Soluciones Operativas.",
+  "name": "Sers Soluciones",
+  "description": "Plataforma integral de gestión de servicios, control de calidad, evidencias antes/después, reportes de insumos y cotizaciones para Sers Soluciones.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

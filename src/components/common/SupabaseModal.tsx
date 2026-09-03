@@ -413,8 +413,9 @@ DELETE FROM public.quotations;
   };
 
   const usersCredentialsSqlScript = `-- ==============================================================================
--- CLEANPRO / SERS SOLUCIONES OPERATIVAS
--- SCRIPT DE MÓDULO PERSONAL Y CREDENCIALES DE ACCESO
+-- SERS SOLUCIONES
+-- SCRIPT DE MÓDULO PERSONAL Y ACCESO MULTIUSUARIO (POR USUARIO Y/O CORREO)
+-- Proyecto Supabase: ksnvpnvpajhujmwutumh
 -- ==============================================================================
 
 -- 1. TABLA DE USUARIOS Y ACCESOS DEL SISTEMA
@@ -435,12 +436,19 @@ CREATE TABLE IF NOT EXISTS public.app_users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Índices para búsqueda ultrarrápida por usuario o correo electrónico (Case-Insensitive)
+CREATE INDEX IF NOT EXISTS idx_app_users_username_lower ON public.app_users (LOWER(username));
+CREATE INDEX IF NOT EXISTS idx_app_users_email_lower ON public.app_users (LOWER(email));
+
 -- 2. AMPLIAR TABLA EMPLEADOS
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS password TEXT;
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS job_title TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_employees_username_lower ON public.employees (LOWER(username));
+CREATE INDEX IF NOT EXISTS idx_employees_email_lower ON public.employees (LOWER(email));
 
 -- 3. POLÍTICAS RLS (Permitir lectura y actualización por la app)
 ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
@@ -455,7 +463,7 @@ CREATE POLICY "Permitir actualizacion en app_users" ON public.app_users FOR UPDA
 INSERT INTO public.app_users (
     id, name, email, username, password, role, job_title, phone, assigned_zone, status, notes
 ) VALUES 
--- 1. Harold Anguiano Morales (Admin)
+-- 1. Harold Anguiano Morales (Admin) - Puede ingresar con "haroldo90" o "haroldo90@hotmail.com"
 (
     'USR-HAROLD-01',
     'Harold Anguiano Morales',
@@ -467,9 +475,9 @@ INSERT INTO public.app_users (
     '+52 55 1234 5678',
     'Oficina Central / Todas las Zonas',
     'activo',
-    'Administrador Principal SERS'
+    'Administrador Principal SERS Soluciones'
 ),
--- 2. José del Carmen Sotero (Operativo / Supervisor con clave segura generada)
+-- 2. José del Carmen Sotero (Operativo) - Puede ingresar con "josesers" o "contacto.sers@gmail.com"
 (
     'USR-JOSE-02',
     'José del Carmen Sotero',

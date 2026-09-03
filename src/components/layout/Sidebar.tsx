@@ -2,6 +2,7 @@ import React from 'react';
 import { UserRole, AppUser } from '../../types';
 import { Sparkles, LogOut, LucideIcon, User, Settings, ShieldCheck, HardHat, Building2 } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
+import { PWAInstallButton } from '../common/PWAInstallButton';
 
 export interface NavItem {
   id: string;
@@ -196,6 +197,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         )}
+
+        {/* PWA In-App Install Button */}
+        <PWAInstallButton variant="full" className="mb-2" />
 
         <button
           onClick={onLogout}

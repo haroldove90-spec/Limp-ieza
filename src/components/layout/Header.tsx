@@ -12,6 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
+import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface HeaderProps {
   currentRole: UserRole;
@@ -160,6 +161,9 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: User Profile & Logout */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* PWA Install Button */}
+        <PWAInstallButton />
+
         {/* User Profile Card Button */}
         {onOpenProfile ? (
           <button

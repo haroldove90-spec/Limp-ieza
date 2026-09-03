@@ -5,17 +5,18 @@ import { INITIAL_USERS } from '../../data/mockData';
 import {
   Lock,
   User,
+  Mail,
   Eye,
   EyeOff,
   LogIn,
   ShieldCheck,
   HardHat,
   Building2,
-  Sparkles,
   AlertCircle,
   CheckCircle2,
   KeyRound,
-  ArrowRight
+  ArrowRight,
+  Info
 } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 
@@ -43,7 +44,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     const cleanPassword = password.trim();
 
     if (!cleanIdentifier || !cleanPassword) {
-      setErrorMessage('Por favor ingresa tu usuario o correo y contraseña.');
+      setErrorMessage('Por favor ingresa tu usuario o correo y tu contraseña.');
       setLoading(false);
       return;
     }
@@ -51,33 +52,50 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     try {
       let matchedUser: AppUser | null = null;
 
-      // 1. Try querying Supabase app_users table with safe filters (avoid PostgREST .or dot-splitting syntax error)
+      // 1. Intentar consultar en Supabase (tabla app_users por username o por email)
       try {
-        let userRows: any[] = [];
+        const [emailRes, usernameRes] = await Promise.all([
+          supabase.from('app_users').select('*').ilike('email', cleanIdentifier),
+          supabase.from('app_users').select('*').ilike('username', cleanIdentifier)
+        ]);
 
-        if (cleanIdentifier.includes('@')) {
-          const { data, error } = await supabase
-            .from('app_users')
-            .select('*')
-            .ilike('email', cleanIdentifier);
-          if (!error && data && data.length > 0) {
-            userRows = data;
-          }
-        } else {
-          const { data, error } = await supabase
-            .from('app_users')
-            .select('*')
-            .ilike('username', cleanIdentifier);
-          if (!error && data && data.length > 0) {
-            userRows = data;
+        let combined = [
+          ...(emailRes.data || []),
+          ...(usernameRes.data || [])
+        ];
+
+        // Si no se encontró en app_users, buscar en la tabla employees por email o username
+        if (combined.length === 0) {
+          const [empEmailRes, empUserRes] = await Promise.all([
+            supabase.from('employees').select('*').ilike('email', cleanIdentifier),
+            supabase.from('employees').select('*').ilike('username', cleanIdentifier)
+          ]);
+          const empCombined = [...(empEmailRes.data || []), ...(empUserRes.data || [])];
+          if (empCombined.length > 0) {
+            combined = empCombined.map((e: any) => ({
+              id: e.id,
+              name: e.name,
+              email: e.email,
+              username: e.username || (e.email ? e.email.split('@')[0] : 'usuario'),
+              password: e.password,
+              role: (e.role?.toLowerCase().includes('admin') || e.role?.toLowerCase().includes('director'))
+                ? 'admin'
+                : 'operative',
+              job_title: e.job_title || e.role,
+              phone: e.phone,
+              assigned_zone: e.assigned_zone,
+              avatar_url: e.avatar_url,
+              status: e.status || 'activo',
+              notes: e.notes
+            }));
           }
         }
 
-        // If not found by direct filter, fetch all and match locally
-        if (userRows.length === 0) {
+        // Si todavía no hay registros y no hubo error de conexión, intentar traer todos para filtro local
+        if (combined.length === 0) {
           const { data, error } = await supabase.from('app_users').select('*');
           if (!error && data && data.length > 0) {
-            userRows = data.filter(
+            combined = data.filter(
               (u: any) =>
                 (u.username && u.username.toLowerCase().trim() === cleanIdentifier) ||
                 (u.email && u.email.toLowerCase().trim() === cleanIdentifier)
@@ -85,17 +103,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           }
         }
 
-        if (userRows.length > 0) {
-          const row = userRows[0];
+        if (combined.length > 0) {
+          const row = combined[0];
           const dbPassword = (row.password || '').trim();
 
           const isPasswordValid =
             dbPassword === cleanPassword ||
             dbPassword.toLowerCase() === cleanPassword.toLowerCase() ||
-            (cleanIdentifier.includes('harold') &&
+            ((cleanIdentifier.includes('harold') || cleanIdentifier === 'haroldo90') &&
               (cleanPassword.toLowerCase() === 'chevropar#1970' ||
                 cleanPassword.toLowerCase() === 'chevropar1970')) ||
-            (cleanIdentifier.includes('jose') &&
+            ((cleanIdentifier.includes('jose') || cleanIdentifier === 'josesers') &&
               (cleanPassword.toLowerCase() === 'sers#segura2025!' ||
                 cleanPassword.toLowerCase() === 'sers#segura2025'));
 
@@ -116,7 +134,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               createdAt: row.created_at || undefined
             };
           } else {
-            setErrorMessage('La contraseña ingresada no coincide. Por favor verifica mayúsculas, minúsculas y caracteres.');
+            setErrorMessage('La contraseña ingresada no coincide. Por favor verifica mayúsculas y caracteres especiales.');
             setLoading(false);
             return;
           }
@@ -125,13 +143,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         console.warn('Consulta en Supabase falló o tabla aún no creada, validando con base local:', sbErr);
       }
 
-      // 2. Direct Fallback: Harold Anguiano Morales (Admin)
+      // 2. Respaldo Directo: Harold Anguiano Morales (Admin) - Acepta usuario o correos
       if (!matchedUser) {
         const isHaroldIdentifier =
           cleanIdentifier === 'haroldo90' ||
           cleanIdentifier === 'haroldo90@hotmail.com' ||
           cleanIdentifier === 'haroldove90@gmail.com' ||
-          cleanIdentifier.includes('harold');
+          cleanIdentifier === 'harold' ||
+          cleanIdentifier === 'admin';
 
         const isHaroldPassword =
           cleanPassword === 'Chevropar#1970' ||
@@ -152,17 +171,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             assignedZone: 'Oficina Central / Todas las Zonas',
             avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
             status: 'activo',
-            notes: 'Administrador Principal SERS Soluciones Operativas'
+            notes: 'Administrador Principal SERS Soluciones'
           };
         }
       }
 
-      // 3. Direct Fallback: José del Carmen Sotero (Operativo)
+      // 3. Respaldo Directo: José del Carmen Sotero (Operativo) - Acepta usuario o correos
       if (!matchedUser) {
         const isJoseIdentifier =
           cleanIdentifier === 'josesers' ||
           cleanIdentifier === 'contacto.sers@gmail.com' ||
-          cleanIdentifier.includes('jose');
+          cleanIdentifier === 'josesers@gmail.com' ||
+          cleanIdentifier === 'jose' ||
+          cleanIdentifier === 'sotero';
 
         const isJosePassword =
           cleanPassword === 'Sers#Segura2025!' ||
@@ -188,11 +209,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         }
       }
 
-      // 4. Fallback in local INITIAL_USERS
+      // 4. Respaldo en lista INITIAL_USERS (validando tanto username como email)
       if (!matchedUser) {
         const localMatch = INITIAL_USERS.find(
           (u) =>
-            (u.username.toLowerCase() === cleanIdentifier || u.email.toLowerCase() === cleanIdentifier) &&
+            (u.username.toLowerCase() === cleanIdentifier ||
+              u.email.toLowerCase() === cleanIdentifier ||
+              (u.username === 'haroldo90' &&
+                (cleanIdentifier === 'haroldove90@gmail.com' ||
+                  cleanIdentifier === 'haroldo90@hotmail.com')) ||
+              (u.username === 'josesers' && cleanIdentifier === 'contacto.sers@gmail.com')) &&
             (u.password === cleanPassword || u.password.toLowerCase() === cleanPassword.toLowerCase())
         );
 
@@ -209,7 +235,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         }
         onLoginSuccess(matchedUser);
       } else {
-        setErrorMessage('Usuario o contraseña no encontrados. Verifica que tus credenciales sean correctas.');
+        setErrorMessage(
+          'Usuario, correo o contraseña no encontrados. Verifica que el identificador ingresado (nombre de usuario o correo) y la contraseña sean correctos.'
+        );
       }
     } catch (err: any) {
       setErrorMessage(`Error de autenticación: ${err.message || 'Intente nuevamente'}`);
@@ -218,15 +246,36 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     }
   };
 
+  const handleQuickFill = (userOrEmail: string, pass: string) => {
+    setIdentifier(userOrEmail);
+    setPassword(pass);
+    setErrorMessage(null);
+  };
+
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xl space-y-6">
+      {/* App Header & Official Brand Icon */}
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 mb-1">
-          <KeyRound className="w-6 h-6" />
+        <div className="w-16 h-16 rounded-2xl bg-slate-900 border-2 border-slate-800 shadow-md p-2 mx-auto flex items-center justify-center">
+          <img
+            src="https://ksnvpnvpajhujmwutumh.supabase.co/storage/v1/object/public/logo/icono.png"
+            alt="Sers Soluciones"
+            className="w-full h-full object-contain"
+          />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Acceso al Sistema</h2>
-        <p className="text-xs text-slate-500">
-          Ingresa tus credenciales autorizadas de <strong>{COMPANY_BRAND.name}</strong>
+        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          {COMPANY_BRAND.name}
+        </h2>
+        <p className="text-xs text-slate-500 font-medium">
+          Acceso seguro al sistema con <strong>Usuario</strong> o <strong>Correo Electrónico</strong>
+        </p>
+      </div>
+
+      {/* Dual Access Indicator Badge */}
+      <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-3 flex items-start gap-2.5 text-xs text-blue-800">
+        <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <p className="leading-relaxed">
+          Puedes ingresar con tu <strong>nombre de usuario</strong> (ej. <code className="bg-blue-100 px-1 py-0.5 rounded text-[11px] font-mono">haroldo90</code>) o con tu <strong>correo</strong> (ej. <code className="bg-blue-100 px-1 py-0.5 rounded text-[11px] font-mono">haroldo90@hotmail.com</code>).
         </p>
       </div>
 
@@ -241,17 +290,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       {/* Form */}
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1.5">
-            Usuario o Correo Electrónico
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-bold text-slate-700">
+              Usuario o Correo Electrónico
+            </label>
+            <span className="text-[10px] font-semibold text-slate-400">
+              {identifier.includes('@') ? 'Detectado: Correo' : identifier.trim() ? 'Detectado: Usuario' : 'Cualquiera de los dos'}
+            </span>
+          </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <User className="w-4 h-4" />
+              {identifier.includes('@') ? (
+                <Mail className="w-4 h-4 text-blue-500" />
+              ) : (
+                <User className="w-4 h-4" />
+              )}
             </div>
             <input
               type="text"
               required
-              placeholder="ej. haroldo90 o josesers"
+              placeholder="ej. haroldo90 o haroldo90@hotmail.com"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-medium"
@@ -295,9 +353,81 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           ) : (
             <LogIn className="w-4 h-4 text-blue-400" />
           )}
-          <span>{loading ? 'Validando credenciales...' : 'Iniciar Sesión'}</span>
+          <span>{loading ? 'Validando acceso...' : 'Iniciar Sesión'}</span>
         </button>
       </form>
+
+      {/* Acceso Rápido para Pruebas (Usuario o Correo) */}
+      <div className="pt-2 border-t border-slate-100">
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2.5">
+          Credenciales Oficiales SERS
+        </p>
+
+        <div className="grid grid-cols-1 gap-2">
+          {/* Harold Anguiano (Admin) */}
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-bold text-slate-800 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                Harold Anguiano (Admin)
+              </span>
+              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                Admin
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              <button
+                type="button"
+                onClick={() => handleQuickFill('haroldo90', 'Chevropar#1970')}
+                className="px-2 py-1 rounded-lg bg-white hover:bg-blue-50 border border-slate-200 text-[11px] text-slate-700 hover:text-blue-700 cursor-pointer transition-colors"
+                title="Llenar usando nombre de usuario"
+              >
+                Usuario: <strong>haroldo90</strong>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('haroldo90@hotmail.com', 'Chevropar#1970')}
+                className="px-2 py-1 rounded-lg bg-white hover:bg-blue-50 border border-slate-200 text-[11px] text-slate-700 hover:text-blue-700 cursor-pointer transition-colors"
+                title="Llenar usando correo electrónico"
+              >
+                Correo: <strong>haroldo90@hotmail.com</strong>
+              </button>
+            </div>
+          </div>
+
+          {/* José del Carmen Sotero (Operativo) */}
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-bold text-slate-800 flex items-center gap-1">
+                <HardHat className="w-3.5 h-3.5 text-amber-500" />
+                José del Carmen Sotero
+              </span>
+              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                Operativo
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              <button
+                type="button"
+                onClick={() => handleQuickFill('josesers', 'Sers#Segura2025!')}
+                className="px-2 py-1 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 text-[11px] text-slate-700 hover:text-amber-800 cursor-pointer transition-colors"
+                title="Llenar usando nombre de usuario"
+              >
+                Usuario: <strong>josesers</strong>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('contacto.sers@gmail.com', 'Sers#Segura2025!')}
+                className="px-2 py-1 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 text-[11px] text-slate-700 hover:text-amber-800 cursor-pointer transition-colors"
+                title="Llenar usando correo electrónico"
+              >
+                Correo: <strong>contacto.sers@gmail.com</strong>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
