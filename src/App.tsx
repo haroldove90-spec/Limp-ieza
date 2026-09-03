@@ -1243,7 +1243,7 @@ export default function App() {
         currentUser={currentUser}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         isAdmin={isAdmin}
-        onSelectRole={handleSelectRole}
+        onSelectRole={isAdmin ? handleSelectRole : undefined}
       />
 
       {/* Main Content Area */}
@@ -1363,7 +1363,7 @@ export default function App() {
           onTabChange={setActiveTab}
           isAdmin={isAdmin}
           currentRole={currentRole}
-          onSelectRole={handleSelectRole}
+          onSelectRole={isAdmin ? handleSelectRole : undefined}
         />
       </div>
 

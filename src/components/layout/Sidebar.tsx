@@ -113,8 +113,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Bottom Profile & Actions Area */}
       <div className="space-y-3 pt-4 border-t border-slate-100">
-        {/* Role Switcher for Admin */}
-        {(isAdmin || onSelectRole) && onSelectRole && (
+        {/* Role Switcher strictly for Admin role */}
+        {isAdmin && currentRole === 'admin' && onSelectRole && (
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5 shadow-xs">
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-[10px] font-extrabold tracking-wider text-slate-500 uppercase">
@@ -128,46 +128,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectRole('admin')}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
-                  currentRole === 'admin'
-                    ? 'bg-slate-900 text-white font-bold shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium'
-                }`}
-                title="Vista Administrador"
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer bg-slate-900 text-white font-bold shadow-xs"
+                title="Vista Administrador (Activa)"
               >
-                <ShieldCheck className={`w-4 h-4 mb-0.5 ${currentRole === 'admin' ? 'text-blue-400' : 'text-slate-500'}`} />
+                <ShieldCheck className="w-4 h-4 mb-0.5 text-blue-400" />
                 <span className="text-[10px] leading-tight">Admin</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onSelectRole('operative')}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
-                  currentRole === 'operative'
-                    ? 'bg-blue-600 text-white font-bold shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium'
-                }`}
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium"
                 title="Vista Operativa"
               >
-                <HardHat className={`w-4 h-4 mb-0.5 ${currentRole === 'operative' ? 'text-white' : 'text-slate-500'}`} />
+                <HardHat className="w-4 h-4 mb-0.5 text-slate-500" />
                 <span className="text-[10px] leading-tight">Operativo</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onSelectRole('client')}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
-                  currentRole === 'client'
-                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium'
-                }`}
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium"
                 title="Vista Cliente"
               >
-                <Building2 className={`w-4 h-4 mb-0.5 ${currentRole === 'client' ? 'text-white' : 'text-slate-500'}`} />
+                <Building2 className="w-4 h-4 mb-0.5 text-slate-500" />
                 <span className="text-[10px] leading-tight">Cliente</span>
               </button>
             </div>
           </div>
+        )}
+
+        {/* If an Admin is previewing an Operative or Client role, provide a simple way to return to Admin */}
+        {isAdmin && currentRole !== 'admin' && onSelectRole && (
+          <button
+            type="button"
+            onClick={() => onSelectRole('admin')}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+            title="Volver a la vista Administrador"
+          >
+            <ShieldCheck className="w-4 h-4 text-blue-400" />
+            <span>Volver a Vista Admin</span>
+          </button>
         )}
 
         {/* Profile Card Button */}
