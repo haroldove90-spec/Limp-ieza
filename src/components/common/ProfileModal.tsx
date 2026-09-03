@@ -69,7 +69,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          const MAX_SIZE = 400;
+          const MAX_SIZE = 280;
           let width = img.width;
           let height = img.height;
 
@@ -90,21 +90,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
-            const compressedUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const compressedUrl = canvas.toDataURL('image/jpeg', 0.82);
             setAvatarUrl(compressedUrl);
-            setStatusMessage({ type: 'success', text: 'Foto cargada y optimizada. Haz clic en "Guardar Cambios" para sincronizarla con Supabase.' });
+            setStatusMessage({ type: 'success', text: 'Foto cargada correctamente. Haz clic en "Guardar y Actualizar Perfil" para aplicar los cambios.' });
           } else {
             setAvatarUrl(rawDataUrl);
-            setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar Cambios".' });
+            setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar y Actualizar Perfil".' });
           }
         } catch {
           setAvatarUrl(rawDataUrl);
-          setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar Cambios".' });
+          setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar y Actualizar Perfil".' });
         }
       };
       img.onerror = () => {
         setAvatarUrl(rawDataUrl);
-        setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar Cambios".' });
+        setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar y Actualizar Perfil".' });
       };
       img.src = rawDataUrl;
     };
@@ -174,11 +174,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       }
 
       if (res.success) {
-        setStatusMessage({ type: 'success', text: '¡Perfil y credenciales actualizados exitosamente en Supabase!' });
+        setStatusMessage({ type: 'success', text: '¡Foto de perfil y datos actualizados exitosamente en Supabase!' });
       } else {
         setStatusMessage({
           type: 'success',
-          text: 'Perfil actualizado en la aplicación (con aviso en Supabase: ' + (res.error || 'local') + ')'
+          text: 'Perfil y foto guardados localmente (' + (res.error || 'sin conexión') + ')'
         });
       }
 
@@ -304,14 +304,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 Haz clic sobre la foto para subir un archivo desde tu dispositivo, o elige uno de estos avatares:
               </p>
 
-              {/* Quick Preset Avatars */}
-              <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                >
+                  <Camera className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Subir Foto</span>
+                </button>
+
                 {AVATAR_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setAvatarUrl(preset)}
                     className="w-7 h-7 rounded-full overflow-hidden border-2 border-white hover:scale-110 shadow-xs transition-transform cursor-pointer"
+                    title="Avatar predeterminado"
                   >
                     <img src={preset} alt="Avatar preset" className="w-full h-full object-cover" />
                   </button>

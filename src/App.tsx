@@ -494,14 +494,23 @@ export default function App() {
 
   const handleUpdateCurrentUser = (updatedUser: AppUser) => {
     setCurrentUser(updatedUser);
+    setAuthenticatedUser(updatedUser);
     try {
       localStorage.setItem('cleanpro_current_user', JSON.stringify(updatedUser));
+      localStorage.setItem('cleanpro_auth_user', JSON.stringify(updatedUser));
     } catch {
       // ignore
     }
     setEmployees((prev) =>
       prev.map((e) => {
-        if (e.username === updatedUser.username || e.email === updatedUser.email) {
+        if (
+          e.username === updatedUser.username ||
+          e.email === updatedUser.email ||
+          (updatedUser.username === 'haroldo90' && e.id === 'EMP-00') ||
+          (updatedUser.username === 'josesers' && e.id === 'EMP-04') ||
+          e.id === updatedUser.id ||
+          (updatedUser.id && e.id === updatedUser.id.replace('USR-', 'EMP-'))
+        ) {
           return {
             ...e,
             name: updatedUser.name,

@@ -672,39 +672,46 @@ export const supabaseService = {
       if (data.notes !== undefined) updateData.notes = data.notes;
       if (data.jobTitle !== undefined) updateData.job_title = data.jobTitle;
 
-      // 1. Update in app_users
+      // 1. Determine target app_user ID
+      let targetUserId = userId;
+      if (!targetUserId || targetUserId === 'undefined') {
+        if (data.username === 'haroldo90' || (data.email && (data.email.includes('harold') || data.email.includes('hotmail')))) {
+          targetUserId = 'USR-HAROLD-01';
+        } else if (data.username === 'josesers' || (data.email && data.email.includes('contacto.sers'))) {
+          targetUserId = 'USR-JOSE-02';
+        } else {
+          targetUserId = 'USR-HAROLD-01';
+        }
+      }
+
+      // Update in app_users
       let userUpdated = false;
-      const { data: uRes1, error: uErr1 } = await supabase
+      const { data: uRes1 } = await supabase
         .from('app_users')
         .update(updateData)
-        .eq('id', userId)
+        .eq('id', targetUserId)
         .select();
 
       if (uRes1 && uRes1.length > 0) {
         userUpdated = true;
-      } else if (data.username || data.email) {
-        const orConditions = [];
-        if (data.username) orConditions.push(`username.eq.${data.username}`);
-        if (data.email) orConditions.push(`email.eq.${data.email}`);
-        if (orConditions.length > 0) {
-          const { data: uRes2 } = await supabase
-            .from('app_users')
-            .update(updateData)
-            .or(orConditions.join(','))
-            .select();
-          if (uRes2 && uRes2.length > 0) userUpdated = true;
-        }
+      } else if (data.username) {
+        const { data: uRes2 } = await supabase
+          .from('app_users')
+          .update(updateData)
+          .eq('username', data.username)
+          .select();
+        if (uRes2 && uRes2.length > 0) userUpdated = true;
       }
 
-      // If user row wasn't present in app_users yet, insert it
-      if (!userUpdated && (data.username || userId)) {
+      // If user row was not updated in app_users yet, upsert it
+      if (!userUpdated) {
         await supabase.from('app_users').upsert({
-          id: userId.startsWith('USR-') ? userId : `USR-${userId}`,
-          name: data.name || 'Harold Anguiano Morales',
+          id: targetUserId.startsWith('USR-') ? targetUserId : `USR-${targetUserId}`,
+          name: data.name || (data.username === 'haroldo90' ? 'Harold Anguiano Morales' : 'Usuario SERS'),
           email: data.email || (data.username ? `${data.username}@serssoluciones.mx` : 'haroldo90@hotmail.com'),
           username: data.username || 'haroldo90',
           password: data.password || 'Chevropar#1970',
-          role: data.role || 'admin',
+          role: data.role || (data.username === 'josesers' ? 'operative' : 'admin'),
           avatar_url: data.avatarUrl || null,
           job_title: data.jobTitle || 'Director General / Administrador',
           phone: data.phone || '+52 55 1234 5678',
@@ -713,40 +720,49 @@ export const supabaseService = {
         });
       }
 
-      // 2. Also update in employees table (for photos, name, phone, etc.)
+      // 2. Also synchronize with employees table (for photo, phone, job title, etc.)
       const empUpdateData: any = { updated_at: new Date().toISOString() };
       if (data.name !== undefined) empUpdateData.name = data.name;
       if (data.email !== undefined && data.email.trim() !== '') empUpdateData.email = data.email.trim();
       if (data.phone !== undefined) empUpdateData.phone = data.phone;
-      if (data.password !== undefined && data.password.trim() !== '') empUpdateData.password = data.password.trim();
+      if (data.password !== undefined) empUpdateData.password = data.password.trim();
       if (data.avatarUrl !== undefined) empUpdateData.avatar_url = data.avatarUrl;
       if (data.notes !== undefined) empUpdateData.notes = data.notes;
       if (data.jobTitle !== undefined) empUpdateData.job_title = data.jobTitle;
 
-      const empOrConditions = [`id.eq.${userId}`];
-      if (userId.startsWith('USR-')) {
-        empOrConditions.push(`id.eq.${userId.replace('USR-', 'EMP-')}`);
-      }
-      if (userId === 'USR-HAROLD-01' || data.username === 'haroldo90' || data.email === 'haroldo90@hotmail.com') {
-        empOrConditions.push('id.eq.EMP-00');
-      }
-      if (userId === 'USR-JOSE-02' || data.username === 'josesers' || data.email === 'contacto.sers@gmail.com') {
-        empOrConditions.push('id.eq.EMP-04');
-      }
-      if (data.username) {
-        empOrConditions.push(`username.eq.${data.username}`);
-      }
-      if (data.email) {
-        empOrConditions.push(`email.eq.${data.email}`);
+      // Identify corresponding employee ID
+      let empId = 'EMP-00'; // Default for Harold
+      if (
+        targetUserId === 'USR-JOSE-02' ||
+        data.username === 'josesers' ||
+        (data.email && data.email.includes('contacto.sers'))
+      ) {
+        empId = 'EMP-04';
+      } else if (
+        targetUserId === 'USR-HAROLD-01' ||
+        data.username === 'haroldo90' ||
+        (data.email && (data.email.includes('harold') || data.email.includes('hotmail')))
+      ) {
+        empId = 'EMP-00';
+      } else if (targetUserId.startsWith('EMP-')) {
+        empId = targetUserId;
+      } else if (targetUserId.startsWith('USR-')) {
+        empId = targetUserId.replace('USR-', 'EMP-');
       }
 
-      const { error: eErr } = await supabase
+      // Direct update by exact employee id
+      const { data: empRes1 } = await supabase
         .from('employees')
         .update(empUpdateData)
-        .or(empOrConditions.join(','));
+        .eq('id', empId)
+        .select();
 
-      if (eErr) {
-        console.warn('employees table update warning:', eErr);
+      // If not found by ID, update by username
+      if ((!empRes1 || empRes1.length === 0) && data.username) {
+        await supabase
+          .from('employees')
+          .update(empUpdateData)
+          .eq('username', data.username);
       }
 
       return { success: true };
