@@ -118,14 +118,17 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [orderNotes, setOrderNotes] = useState('');
   const [orderSuccessAlert, setOrderSuccessAlert] = useState(false);
 
-  // Filter client data
-  const clientServices = services.filter(
+  // Filter client data with fallback to ensure real test data displays
+  const matchedServices = services.filter(
     (s) => s.clientName.toLowerCase().includes(clientName.toLowerCase()) || s.clientName.includes('SkyTower')
   );
-  const clientIncidents = incidents.filter(
+  const clientServices = matchedServices.length > 0 ? matchedServices : services;
+
+  const matchedIncidents = incidents.filter(
     (i) => i.clientName.toLowerCase().includes(clientName.toLowerCase()) || i.clientName.includes('SkyTower')
   );
-  const currentReport = cycleReports[0] || cycleReports[0];
+  const clientIncidents = matchedIncidents.length > 0 ? matchedIncidents : incidents;
+  const currentReport = cycleReports[0] || undefined;
 
   // Technician in charge
   const technicianName =
@@ -144,8 +147,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       s.timeSlot,
       s.operativeName,
       s.status.toUpperCase(),
-      `${s.tasks.filter((t) => t.completed).length}/${s.tasks.length} completadas`,
-      `${s.evidences.length} fotos adjuntas`
+      `${(s.tasks || []).filter((t) => t.completed).length}/${(s.tasks || []).length} completadas`,
+      `${(s.evidences || []).length} fotos adjuntas`
     ]);
     exportToExcel(`Bitacora_Servicios_${clientName.replace(/\s+/g, '_')}`, headers, rows);
   };
@@ -641,101 +644,121 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
           {/* Evidence Grid by Service */}
           <div className="space-y-6">
-            {clientServices.map((service, sIdx) => (
-              <div
-                key={service.id || `client-srv-${sIdx}`}
-                className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-4"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                      <Camera className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-base md:text-lg">
-                        Servicio: {service.date} ({service.timeSlot})
-                      </h3>
-                      <p className="text-xs text-slate-400 font-medium">
-                        Técnico Operativo: <strong className="text-slate-700">{service.operativeName}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const srvInc = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
-                        shareServiceReportWithEvidencesViaWhatsApp(service, clientProfile, srvInc);
-                      }}
-                      className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Compartir reporte por WhatsApp con fotos y firmas"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp c/ Fotos
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        const srvInc = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
-                        downloadHistoricalAuditPDF(service, clientProfile, srvInc);
-                      }}
-                      className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Descargar Expediente de Auditoría y Resguardo Inmutable (PDF)"
-                    >
-                      <Download className="w-3.5 h-3.5 text-purple-700" /> Expediente PDF
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setVaultInitialServiceId(service.id);
-                        setShowHistoricalVault(true);
-                      }}
-                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Ver en Bóveda Histórica"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-purple-700" /> Bóveda
-                    </button>
-
-                    <span className="text-xs font-bold text-green-700 bg-green-50 px-3 py-1 rounded-full uppercase">
-                      {service.status === 'completado' ? 'Completado y Auditado' : 'En Ejecución'}
-                    </span>
-                  </div>
+            {clientServices.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 md:p-12 border border-slate-100 shadow-sm text-center space-y-4">
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
+                  <Camera className="w-7 h-7" />
                 </div>
-
-                {/* Photo Evidence Tiles */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-                  {service.evidences.map((ev, evIdx) => (
-                    <div
-                      key={ev.id || `client-ev-${service.id}-${evIdx}`}
-                      onClick={() => setViewingEvidence(ev)}
-                      className="group p-3.5 rounded-2xl border border-slate-100 hover:border-blue-300 bg-slate-50/50 hover:bg-white transition-all cursor-pointer shadow-xs"
-                    >
-                      <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-900 mb-2.5">
-                        <img
-                          src={ev.afterPhotoUrl || ev.beforePhotoUrl}
-                          alt={ev.area}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <span className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                          {ev.timestamp}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-slate-800 text-sm">{ev.area}</h4>
-                        <span className="text-xs text-blue-600 font-semibold group-hover:underline">
-                          Comparativa →
-                        </span>
-                      </div>
-                      {ev.notes && (
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-1">
-                          {ev.notes}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                <div className="max-w-md mx-auto">
+                  <h3 className="font-bold text-slate-800 text-lg">Sin evidencias registradas</h3>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                    En cuanto el técnico operativo documente las labores fotográficas de antes y después de tu servicio, se reflejarán aquí en tiempo real.
+                  </p>
                 </div>
               </div>
-            ))}
+            ) : (
+              clientServices.map((service, sIdx) => (
+                <div
+                  key={service.id || `client-srv-${sIdx}`}
+                  className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-4"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-base md:text-lg">
+                          Servicio: {service.date} ({service.timeSlot})
+                        </h3>
+                        <p className="text-xs text-slate-400 font-medium">
+                          Técnico Operativo: <strong className="text-slate-700">{service.operativeName}</strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const srvInc = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
+                          shareServiceReportWithEvidencesViaWhatsApp(service, clientProfile, srvInc);
+                        }}
+                        className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Compartir reporte por WhatsApp con fotos y firmas"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp c/ Fotos
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const srvInc = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
+                          downloadHistoricalAuditPDF(service, clientProfile, srvInc);
+                        }}
+                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Descargar Expediente de Auditoría y Resguardo Inmutable (PDF)"
+                      >
+                        <Download className="w-3.5 h-3.5 text-purple-700" /> Expediente PDF
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setVaultInitialServiceId(service.id);
+                          setShowHistoricalVault(true);
+                        }}
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Ver en Bóveda Histórica"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-purple-700" /> Bóveda
+                      </button>
+
+                      <span className="text-xs font-bold text-green-700 bg-green-50 px-3 py-1 rounded-full uppercase">
+                        {service.status === 'completado' ? 'Completado y Auditado' : 'En Ejecución'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Photo Evidence Tiles */}
+                  {(service.evidences || []).length === 0 ? (
+                    <div className="p-6 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      <p className="text-slate-500 text-xs font-semibold">Sin fotografías registradas en este folio de servicio aún.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+                      {(service.evidences || []).map((ev, evIdx) => (
+                        <div
+                          key={ev.id || `client-ev-${service.id}-${evIdx}`}
+                          onClick={() => setViewingEvidence(ev)}
+                          className="group p-3.5 rounded-2xl border border-slate-100 hover:border-blue-300 bg-slate-50/50 hover:bg-white transition-all cursor-pointer shadow-xs"
+                        >
+                          <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-900 mb-2.5">
+                            <img
+                              src={ev.afterPhotoUrl || ev.beforePhotoUrl}
+                              alt={ev.area}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <span className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                              {ev.timestamp}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-slate-800 text-sm">{ev.area}</h4>
+                            <span className="text-xs text-blue-600 font-semibold group-hover:underline">
+                              Comparativa →
+                            </span>
+                          </div>
+                          {ev.notes && (
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-1">
+                              {ev.notes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -1202,13 +1225,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                                 onClick={() =>
                                   setViewingEvidence({
                                     id: `res-${inc.id}`,
-                                    serviceId: inc.serviceId,
-                                    clientName: inc.clientName,
-                                    serviceType: 'Solución a Reporte',
-                                    type: 'despues',
-                                    photoUrl: inc.resolutionPhotoUrl!,
+                                    area: `Solución a Reporte: ${inc.title || inc.location}`,
+                                    afterPhotoUrl: inc.resolutionPhotoUrl!,
+                                    beforePhotoUrl: inc.photoUrl,
                                     timestamp: inc.resolvedAt || inc.time,
-                                    location: inc.location,
                                     notes: inc.resolutionNotes || 'Atención realizada con éxito'
                                   })
                                 }

@@ -54,6 +54,7 @@ import {
 
 interface OperativeDashboardProps {
   activeTab: string;
+  onTabChange?: (tabId: string) => void;
   services: CleaningService[];
   incidents: IncidentReport[];
   kitItems: KitItem[];
@@ -96,6 +97,7 @@ interface OperativeDashboardProps {
 
 export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
   activeTab,
+  onTabChange,
   services,
   incidents,
   kitItems,
@@ -185,7 +187,7 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
 
   const handleCreateEvidence = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newArea.trim()) return;
+    if (!currentService || !newArea.trim()) return;
 
     onAddEvidence(currentService.id, {
       area: newArea,
@@ -315,18 +317,31 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
           })()}
 
           {/* Service Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => {
-              const isSelected = service.id === selectedServiceId;
-              const completedTasks = service.tasks.filter((t) => t.completed).length;
-              const progressPct = Math.round((completedTasks / (service.tasks.length || 1)) * 100);
+          {services.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 md:p-12 text-center border border-slate-100 shadow-sm space-y-4">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
+                <Calendar className="w-7 h-7" />
+              </div>
+              <div className="max-w-md mx-auto">
+                <h3 className="font-bold text-slate-800 text-lg">No hay servicios programados en la agenda</h3>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                  En cuanto se asignen servicios de limpieza desde la administración central, aparecerán aquí con su horario, checklist y sede.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {services.map((service) => {
+                const isSelected = service.id === selectedServiceId;
+                const completedTasks = (service.tasks || []).filter((t) => t.completed).length;
+                const progressPct = Math.round((completedTasks / ((service.tasks || []).length || 1)) * 100);
 
-              const statusBadge =
-                service.status === 'en_proceso'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : service.status === 'completado'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-blue-100 text-blue-800';
+                const statusBadge =
+                  service.status === 'en_proceso'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : service.status === 'completado'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-blue-100 text-blue-800';
 
               return (
                 <div
@@ -444,58 +459,84 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
               );
             })}
           </div>
+          )}
         </div>
       )}
 
       {/* 2. REPORTE DE TRABAJO CON EVIDENCIA FOTOGRÁFICA & CHECKLIST */}
       {activeTab === 'evidencias' && (
         <div className="space-y-6">
-          {/* Active Service Selector Pill Bar */}
-          <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Servicio Seleccionado:</span>
-              <h2 className="text-lg md:text-xl font-bold text-slate-800">
-                {currentService.clientName}
-              </h2>
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
-              {services.map((s) => (
+          {!currentService ? (
+            <div className="bg-white rounded-3xl p-8 md:p-12 border border-slate-100 shadow-sm text-center space-y-5">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto border border-blue-100 shadow-xs">
+                <Camera className="w-8 h-8" />
+              </div>
+              <div className="max-w-md mx-auto">
+                <h3 className="text-xl font-bold text-slate-800">
+                  Bitácora de Evidencias Fotográficas
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 mt-2">
+                  No hay ningún servicio seleccionado o activo en tu agenda. Selecciona un servicio programado para comenzar a capturar fotos de antes/después y completar checklists.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <button
-                  key={s.id}
-                  onClick={() => setSelectedServiceId(s.id)}
-                  className={`px-4 py-2 rounded-2xl text-xs md:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    s.id === currentService.id
-                      ? 'bg-slate-900 text-white shadow-md shadow-slate-200'
-                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
-                  }`}
+                  type="button"
+                  onClick={() => onTabChange?.('agenda')}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-200 cursor-pointer transition-all"
                 >
-                  {s.clientName.split(' ')[0]} ({s.timeSlot.split('-')[0]})
+                  <Calendar className="w-4 h-4" /> Ir a Agenda de Servicios
                 </button>
-              ))}
+              </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Checklist Column (5 cols) */}
-            <div className="lg:col-span-5 bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                      <CheckSquare className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-bold text-slate-800 text-base md:text-lg">
-                      Checklist de Tareas
-                    </h3>
-                  </div>
-                  <span className="text-xs font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">
-                    {currentService.tasks.filter((t) => t.completed).length}/{currentService.tasks.length} Hechas
-                  </span>
+          ) : (
+            <>
+              {/* Active Service Selector Pill Bar */}
+              <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Servicio Seleccionado:</span>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-800">
+                    {currentService.clientName}
+                  </h2>
                 </div>
 
-                <div className="space-y-2.5">
-                  {currentService.tasks.map((task) => (
+                <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+                  {services.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedServiceId(s.id)}
+                      className={`px-4 py-2 rounded-2xl text-xs md:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        s.id === currentService.id
+                          ? 'bg-slate-900 text-white shadow-md shadow-slate-200'
+                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100'
+                      }`}
+                    >
+                      {s.clientName.split(' ')[0]} ({s.timeSlot.split('-')[0]})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Checklist Column (5 cols) */}
+                <div className="lg:col-span-5 bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                          <CheckSquare className="w-5 h-5" />
+                        </div>
+                        <h3 className="font-bold text-slate-800 text-base md:text-lg">
+                          Checklist de Tareas
+                        </h3>
+                      </div>
+                      <span className="text-xs font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">
+                        {(currentService.tasks || []).filter((t) => t.completed).length}/{(currentService.tasks || []).length} Hechas
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {(currentService.tasks || []).map((task) => (
                     <label
                       key={task.id}
                       onClick={() => onToggleTask(currentService.id, task.id)}
@@ -747,7 +788,7 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                 )}
 
                 {/* Evidence List */}
-                {currentService.evidences.length === 0 ? (
+                {(currentService.evidences || []).length === 0 ? (
                   <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <Camera className="w-10 h-10 text-slate-400 mx-auto mb-2" />
                     <p className="text-slate-700 font-semibold text-sm">Sin evidencias registradas aún en este servicio</p>
@@ -755,7 +796,7 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {currentService.evidences.map((ev) => (
+                    {(currentService.evidences || []).map((ev) => (
                       <div
                         key={ev.id}
                         onClick={() => setViewingEvidence(ev)}
@@ -800,6 +841,8 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
               </div>
             </div>
           </div>
+          </>
+        )}
         </div>
       )}
 
@@ -1257,15 +1300,14 @@ export const OperativeDashboard: React.FC<OperativeDashboardProps> = ({
       />
 
       {/* Digital Signature Modal */}
-      {showSignatureModal && (
+      {showSignatureModal && currentService && (
         <ClientSignatureModal
           isOpen={showSignatureModal}
           onClose={() => setShowSignatureModal(false)}
-          serviceId={currentService.id}
-          clientName={currentService.clientName}
-          onSaveSignature={(signature) => {
+          service={currentService}
+          onSaveSignature={(serviceId, signature) => {
             if (onSaveClientSignature) {
-              onSaveClientSignature(currentService.id, signature);
+              onSaveClientSignature(serviceId, signature);
             }
             setShowSignatureModal(false);
           }}

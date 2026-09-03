@@ -81,6 +81,7 @@ export interface SupplyItem {
   currentStock: number;
   unit: string;
   minimumStock: number;
+  minStock?: number;
   costPerUnit: number;
   status?: 'activo' | 'descontinuado';
 }
@@ -177,9 +178,10 @@ export interface TransactionRecord {
   id: string;
   date: string;
   type: 'ingreso' | 'gasto';
-  category: 'poliza_mensual' | 'servicio_extra' | 'compra_insumos' | 'nomina' | 'mantenimiento' | 'otro';
+  category: 'poliza_mensual' | 'servicio_extra' | 'compra_insumos' | 'nomina' | 'mantenimiento' | 'pago_servicio' | 'otro';
   concept: string;
   clientOrVendor: string;
+  entity?: string;
   amount: number;
   status: 'pagado' | 'pendiente';
 }

@@ -30,6 +30,7 @@ export const ClientSignatureModal: React.FC<ClientSignatureModalProps> = ({
   const [signerName, setSignerName] = useState('');
   const [signerRole, setSignerRole] = useState('Responsable en Sitio');
   const [comments, setComments] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Clear canvas
   const handleClear = () => {
@@ -39,6 +40,7 @@ export const ClientSignatureModal: React.FC<ClientSignatureModalProps> = ({
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasSignature(false);
+    setErrorMsg(null);
   };
 
   useEffect(() => {
@@ -100,11 +102,11 @@ export const ClientSignatureModal: React.FC<ClientSignatureModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!signerName.trim()) {
-      alert('Por favor introduce el nombre de la persona que firma la conformidad.');
+      setErrorMsg('Por favor introduce el nombre de la persona que firma la conformidad.');
       return;
     }
     if (!hasSignature) {
-      alert('Por favor solicita la firma del cliente en el recuadro digital.');
+      setErrorMsg('Por favor solicita la firma del cliente en el recuadro digital.');
       return;
     }
 
@@ -146,6 +148,11 @@ export const ClientSignatureModal: React.FC<ClientSignatureModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSave} className="p-6 space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
+              {errorMsg}
+            </div>
+          )}
           <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 text-xs text-slate-700">
             <div className="flex items-center justify-between font-bold text-slate-900 mb-1">
               <span>{service.clientName}</span>

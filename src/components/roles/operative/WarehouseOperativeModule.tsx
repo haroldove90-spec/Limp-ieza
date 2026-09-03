@@ -205,7 +205,7 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
 
   const handleSendWarehouseEmail = () => {
     const dateStr = new Date().toISOString().split('T')[0];
-    const lowStockItems = supplies.filter((s) => s.currentStock <= s.minStock);
+    const lowStockItems = supplies.filter((s) => s.currentStock <= (s.minStock ?? s.minimumStock));
     const recentMoves = movements.slice(0, 8);
 
     const subject = `[REPORTE DE ALMACÉN Y KARDEX] Estado de Existencias y Movimientos (${dateStr})`;
@@ -215,7 +215,7 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
       `• Entradas Acumuladas: +${totalEntradasCount} unidades\n` +
       `• Salidas a Servicios: -${totalSalidasCount} unidades\n` +
       `• Insumos en Nivel Crítico o Mínimo: ${lowStockItems.length} productos\n\n` +
-      (lowStockItems.length > 0 ? `ALERTAS DE REPOSICIÓN URGENTE:\n${lowStockItems.map((i) => ` - ${i.name}: ${i.currentStock} ${i.unit} (Mínimo requerido: ${i.minStock})`).join('\n')}\n\n` : '') +
+      (lowStockItems.length > 0 ? `ALERTAS DE REPOSICIÓN URGENTE:\n${lowStockItems.map((i) => ` - ${i.name}: ${i.currentStock} ${i.unit} (Mínimo requerido: ${i.minStock ?? i.minimumStock})`).join('\n')}\n\n` : '') +
       `ÚLTIMOS MOVIMIENTOS REGISTRADOS:\n` +
       recentMoves.map((m) => ` [${m.type.toUpperCase()}] ${m.quantity} ${m.unit} de ${m.supplyName} - Motivo: ${m.reason} (${m.operativeName})`).join('\n') +
       `\n\nAtentamente,\nControl Operativo de Almacén\nCleanPro Servicios Integrales S.A. de C.V.`;
@@ -291,8 +291,8 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
         <tr>
           <td><strong>${s.name}</strong></td>
           <td>${s.category}</td>
-          <td style="font-weight: bold; color: ${s.currentStock <= s.minStock ? '#dc2626' : '#0f172a'};">${s.currentStock}</td>
-          <td>${s.minStock}</td>
+          <td style="font-weight: bold; color: ${s.currentStock <= (s.minStock ?? s.minimumStock) ? '#dc2626' : '#0f172a'};">${s.currentStock}</td>
+          <td>${s.minStock ?? s.minimumStock}</td>
           <td>${s.unit}</td>
         </tr>
       `).join('')}

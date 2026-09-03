@@ -52,6 +52,7 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
   onToggleStatus,
   onDelete
 }) => {
+  const [copied, setCopied] = useState(false);
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -204,13 +205,27 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
                 onClick={() => {
                   const url = buildDirectAccessUrl('client', client.username || client.email, client.password || 'Sers#Cliente2025!');
                   navigator.clipboard.writeText(url);
-                  alert('Enlace copiado al portapapeles:\n' + url);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
                 }}
-                className="w-full sm:w-auto px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                className={`w-full sm:w-auto px-3 py-2 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+                  copied
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
                 title="Copiar enlace directo con credenciales"
               >
-                <Copy className="w-3.5 h-3.5 text-slate-500" />
-                <span>Copiar Enlace Directo</span>
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>¡Enlace Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Copiar Enlace Directo</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

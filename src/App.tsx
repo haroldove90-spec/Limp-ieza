@@ -56,6 +56,7 @@ import {
   FileText,
   Boxes,
   Building,
+  UserCheck,
   User as UserIcon
 } from 'lucide-react';
 
@@ -161,37 +162,45 @@ export default function App() {
           i.clientName.toLowerCase().includes(m)
         );
 
-      if (data.clients) {
+      if (data.clients && data.clients.length > 0) {
         const cleanClients = data.clients.filter((c) => !isMockClient(c));
-        setClients(cleanClients);
+        if (cleanClients.length > 0) {
+          setClients(cleanClients);
+        }
       }
-      if (data.employees) {
+      if (data.employees && data.employees.length > 0) {
         const cleanEmployees = data.employees.filter((e) => !isMockEmployee(e));
-        // Always ensure Harold and José exist
-        const hasHarold = cleanEmployees.some(
-          (e) => e.id === 'EMP-00' || e.username === 'haroldo90'
-        );
-        const hasJose = cleanEmployees.some(
-          (e) => e.id === 'EMP-04' || e.username === 'josesers'
-        );
-        const finalEmployees = [...cleanEmployees];
-        if (!hasHarold) {
-          const harold = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-00')!;
-          finalEmployees.unshift(harold);
+        if (cleanEmployees.length > 0) {
+          // Always ensure Harold and José exist
+          const hasHarold = cleanEmployees.some(
+            (e) => e.id === 'EMP-00' || e.username === 'haroldo90'
+          );
+          const hasJose = cleanEmployees.some(
+            (e) => e.id === 'EMP-04' || e.username === 'josesers'
+          );
+          const finalEmployees = [...cleanEmployees];
+          if (!hasHarold) {
+            const harold = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-00')!;
+            finalEmployees.unshift(harold);
+          }
+          if (!hasJose) {
+            const jose = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-04')!;
+            finalEmployees.push(jose);
+          }
+          setEmployees(finalEmployees);
         }
-        if (!hasJose) {
-          const jose = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-04')!;
-          finalEmployees.push(jose);
-        }
-        setEmployees(finalEmployees);
       }
-      if (data.services) {
+      if (data.services && data.services.length > 0) {
         const cleanServices = data.services.filter((s) => !isMockService(s));
-        setServices(cleanServices);
+        if (cleanServices.length > 0) {
+          setServices(cleanServices);
+        }
       }
-      if (data.incidents) {
+      if (data.incidents && data.incidents.length > 0) {
         const cleanIncidents = data.incidents.filter((i) => !isMockIncident(i));
-        setIncidents(cleanIncidents);
+        if (cleanIncidents.length > 0) {
+          setIncidents(cleanIncidents);
+        }
       }
       if (data.supplies && data.supplies.length > 0) setSupplies(data.supplies);
       if (data.kitItems && data.kitItems.length > 0) setKitItems(data.kitItems);
@@ -330,7 +339,7 @@ export default function App() {
         name: 'José del Carmen Sotero',
         username: 'josesers',
         email: 'contacto.sers@gmail.com',
-        role: 'operative' as UserRole,
+        role: 'operative' as const,
         phone: '+52 99 3123 4567',
         jobTitle: 'Supervisor de Operaciones y Servicios',
         assignedZone: 'Zona Industrial y Corporativa',
@@ -352,7 +361,7 @@ export default function App() {
         name: 'Lic. Laura Méndez',
         username: 'laura_skytower',
         email: 'admin@skytower.mx',
-        role: 'client' as UserRole,
+        role: 'client' as const,
         phone: '+52 55 9876 5432',
         jobTitle: 'Administradora General',
         assignedZone: 'Oficinas Corporativas SkyTower',
@@ -382,7 +391,7 @@ export default function App() {
           name: 'Harold Anguiano Morales',
           username: 'haroldo90',
           email: 'haroldo90@hotmail.com',
-          role: 'admin' as UserRole,
+          role: 'admin' as const,
           phone: '+52 55 1234 5678',
           jobTitle: 'Dirección General / Administrador',
           assignedZone: 'Oficina Central / Todas las Zonas',
@@ -931,7 +940,9 @@ export default function App() {
       case 'client':
         return [
           { id: 'evidencias_cliente', name: 'Evidencias', icon: Camera },
-          { id: 'insumos_cliente', name: 'Reporte 3 Días', icon: Layers }
+          { id: 'insumos_cliente', name: 'Reporte 3 Días', icon: Layers },
+          { id: 'incidencias_cliente', name: 'Incidencias', icon: AlertTriangle, badgeCount: incidents.filter((i) => i.clientName.toLowerCase().includes(currentClientProfile?.name?.toLowerCase() || 'skytower') && i.status !== 'resuelto').length },
+          { id: 'tecnico_cliente', name: 'Técnico Asignado', icon: UserCheck }
         ];
       case 'admin':
         return [
@@ -1050,6 +1061,7 @@ export default function App() {
           {currentRole === 'operative' && (
             <OperativeDashboard
               activeTab={activeTab}
+              onTabChange={setActiveTab}
               services={services}
               incidents={incidents}
               kitItems={kitItems}
@@ -1170,7 +1182,7 @@ export default function App() {
               name: currentRole === 'admin' ? 'Harold Anguiano Morales' : 'José del Carmen Sotero',
               username: currentRole === 'admin' ? 'haroldo90' : 'josesers',
               email: currentRole === 'admin' ? 'haroldo90@hotmail.com' : 'contacto.sers@gmail.com',
-              role: (currentRole === 'home' ? 'admin' : currentRole) as any,
+              role: (currentRole === 'admin' ? 'admin' : currentRole === 'client' ? 'client' : 'operative'),
               phone: currentRole === 'admin' ? '+52 55 1234 5678' : '+52 99 3123 4567',
               jobTitle: currentRole === 'admin' ? 'Dirección General SERS' : 'Supervisor Operativo',
               assignedZone: currentRole === 'admin' ? 'Oficina Central / Todas las Zonas' : 'Zona Industrial y Corporativa',

@@ -937,8 +937,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       type: txType,
       category: txCategory,
       concept: txConcept,
+      clientOrVendor: txEntity || 'General',
       entity: txEntity,
-      amount: Number(txAmount)
+      amount: Number(txAmount),
+      status: 'pagado'
     });
 
     setShowNewFinanceModal(false);
@@ -1406,7 +1408,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               ) : (
                 services.map((service) => {
-                const completedTasks = service.tasks.filter((t) => t.completed).length;
+                const completedTasks = (service.tasks || []).filter((t) => t.completed).length;
                 const clientObj = clients.find((c) => c.name === service.clientName);
                 const srvIncidents = incidents.filter((i) => i.serviceId === service.id || (i.clientName === service.clientName && i.date === service.date));
 
@@ -1444,9 +1446,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </span>
                           )}
 
-                          {service.evidences.length > 0 && (
+                          {(service.evidences || []).length > 0 && (
                             <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold rounded-full flex items-center gap-1">
-                              📷 {service.evidences.length} Evidencias
+                              📷 {(service.evidences || []).length} Evidencias
                             </span>
                           )}
                         </div>
@@ -1543,9 +1545,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
                     {/* Evidences Photo Grid */}
-                    {service.evidences.length > 0 && (
+                    {(service.evidences || []).length > 0 && (
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
-                        {service.evidences.map((ev, idx) => (
+                        {(service.evidences || []).map((ev, idx) => (
                           <div
                             key={ev.id || `admin-ev-${service.id}-${idx}`}
                             onClick={() => setViewingEvidence(ev)}
@@ -3106,6 +3108,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* MODAL: RESOLVER INCIDENCIA CON EVIDENCIA FOTOGRÁFICA */}
       {resolvingIncident && (
         <IncidentResolutionModal
+          isOpen={true}
           incident={resolvingIncident}
           onClose={() => setResolvingIncident(null)}
           currentUserRole="admin"
@@ -3209,8 +3212,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           client={editingClient}
           employees={employees}
           onClose={() => setEditingClient(null)}
-          onSave={async (clientId, updates) => {
-            await onUpdateClient?.(clientId, updates);
+          onSave={async (_clientId, updates) => {
+            await onUpdateClient?.({ ...editingClient, ...updates });
           }}
         />
       )}
@@ -3234,8 +3237,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           service={editingService}
           employees={employees}
           onClose={() => setEditingService(null)}
-          onSave={async (serviceId, updates) => {
-            await onUpdateService?.(serviceId, updates);
+          onSave={async (_serviceId, updates) => {
+            await onUpdateService?.({ ...editingService, ...updates });
           }}
         />
       )}
@@ -3276,7 +3279,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           }}
           onSave={async (supplyData) => {
             if (editingSupply) {
-              await onUpdateSupply?.(editingSupply.id, supplyData);
+              await onUpdateSupply?.({ ...editingSupply, ...supplyData });
             } else {
               await onAddSupply?.(supplyData);
             }
