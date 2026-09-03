@@ -16,7 +16,7 @@ import {
   Trash2,
   AlertTriangle
 } from 'lucide-react';
-import { supabaseService } from '../../services/supabaseService';
+import { supabaseService, SUPABASE_URL } from '../../services/supabaseService';
 
 interface SupabaseModalProps {
   isOpen: boolean;
@@ -49,7 +49,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   const [activeTab, setActiveTab] = useState<'info' | 'sql' | 'users_sql' | 'clean'>('info');
 
   const projectId = 'ksnvpnvpajhujmwutumh';
-  const supabaseUrl = 'https://ksnvpnvpajhujmwutumh.supabase.co';
+  const supabaseUrl = SUPABASE_URL;
 
   useEffect(() => {
     if (isOpen && !connectionStatus.tested) {

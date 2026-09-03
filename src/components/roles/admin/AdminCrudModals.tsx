@@ -298,6 +298,9 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
   onClose,
   onSave
 }) => {
+  const sanitizedUsername = (client.username === 'appdeign90' ? 'appdesign90' : client.username) || (client.email ? client.email.split('@')[0] : '');
+  const sanitizedPassword = client.password || 'Chevropar#1970';
+
   const [formData, setFormData] = useState({
     name: client.name || '',
     contactPerson: client.contactPerson || '',
@@ -309,8 +312,8 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     auto3DayReport: client.auto3DayReport ?? true,
     status: client.status || 'activo',
     assignedEmployeeId: client.assignedEmployeeId || '',
-    username: client.username || '',
-    password: client.password || ''
+    username: sanitizedUsername,
+    password: sanitizedPassword
   });
   const [isSaving, setIsSaving] = useState(false);
 

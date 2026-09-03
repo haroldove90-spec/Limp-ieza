@@ -351,36 +351,71 @@ export const supabaseService = {
     const usersData = usersRes?.data || [];
 
     return {
-      clients: clientsRes?.data
-        ? clientsRes.data.map((c: any): ClientProfile => {
-            const matchedUser = usersData.find(
-              (u: any) =>
-                u.id === `USR-${c.id}` ||
-                u.id === c.id ||
-                (u.email && c.email && u.email.toLowerCase().trim() === c.email.toLowerCase().trim()) ||
-                (u.assigned_zone && c.name && u.assigned_zone.toLowerCase().trim() === c.name.toLowerCase().trim())
-            );
-            return {
-              id: c.id,
-              name: c.name,
-              contactPerson: c.contact_person,
-              email: c.email,
-              phone: c.phone,
-              address: c.address,
-              contractFrequency: c.contract_frequency,
-              auto3DayReport: c.auto_3day_report,
-              monthlyFee: Number(c.monthly_fee) || 0,
-              assignedEmployeeId: c.assigned_employee_id,
-              assignedEmployeeName: c.assigned_employee_name,
-              assignedEmployeePhone: c.assigned_employee_phone,
-              assignedEmployeeRole: c.assigned_employee_role,
-              notes: c.notes,
-              status: matchedUser?.status || (c as any).status || 'activo',
-              username: matchedUser?.username || (c as any).username,
-              password: matchedUser?.password || (c as any).password
-            };
-          })
-        : null,
+      clients: (() => {
+        const directClients: ClientProfile[] = (clientsRes?.data || []).map((c: any): ClientProfile => {
+          const matchedUser = usersData.find(
+            (u: any) =>
+              u.id === `USR-${c.id}` ||
+              u.id === c.id ||
+              (u.email && c.email && u.email.toLowerCase().trim() === c.email.toLowerCase().trim()) ||
+              (u.assigned_zone && c.name && u.assigned_zone.toLowerCase().trim() === c.name.toLowerCase().trim())
+          );
+          return {
+            id: c.id,
+            name: c.name,
+            contactPerson: c.contact_person,
+            email: c.email,
+            phone: c.phone,
+            address: c.address,
+            contractFrequency: c.contract_frequency,
+            auto3DayReport: c.auto_3day_report,
+            monthlyFee: Number(c.monthly_fee) || 0,
+            assignedEmployeeId: c.assigned_employee_id,
+            assignedEmployeeName: c.assigned_employee_name,
+            assignedEmployeePhone: c.assigned_employee_phone,
+            assignedEmployeeRole: c.assigned_employee_role,
+            notes: c.notes,
+            status: matchedUser?.status || (c as any).status || 'activo',
+            username: matchedUser?.username || (c as any).username,
+            password: matchedUser?.password || (c as any).password
+          };
+        });
+
+        // Complementar con usuarios con rol 'client' en app_users que no estén todavía en directClients
+        const clientUsers = usersData.filter((u: any) => u.role === 'client');
+        clientUsers.forEach((u: any) => {
+          const rawId = u.id.startsWith('USR-') ? u.id.replace('USR-', '') : u.id;
+          const exists = directClients.some(
+            (dc: ClientProfile) =>
+              dc.id === rawId ||
+              dc.id === u.id ||
+              (u.email && dc.email && dc.email.toLowerCase().trim() === u.email.toLowerCase().trim())
+          );
+          if (!exists) {
+            directClients.push({
+              id: rawId,
+              name: u.assigned_zone || u.name || 'Cliente Corporativo',
+              contactPerson: u.name,
+              email: u.email,
+              phone: u.phone || '+52 55 1234 5678',
+              address: 'México',
+              contractFrequency: 'Lunes a Sábado',
+              auto3DayReport: true,
+              monthlyFee: 12000,
+              assignedEmployeeId: 'EMP-04',
+              assignedEmployeeName: 'José del Carmen Sotero',
+              assignedEmployeePhone: '+52 99 3123 4567',
+              assignedEmployeeRole: 'Supervisor Operativo',
+              status: u.status || 'activo',
+              username: u.username,
+              password: u.password,
+              notes: u.notes || 'Portal de Cliente'
+            });
+          }
+        });
+
+        return directClients.length > 0 ? directClients : null;
+      })(),
       employees: employeesRes.data
         ? employeesRes.data.map((e: any): EmployeeProfile => ({
             id: e.id,

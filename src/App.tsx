@@ -258,18 +258,50 @@ export default function App() {
       // Sync fresh user credentials and avatar from app_users
       if (data.users && data.users.length > 0) {
         const saved = localStorage.getItem('cleanpro_current_user') || localStorage.getItem('cleanpro_auth_user');
+        let freshUser: AppUser | undefined;
+
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
-            const freshUser = data.users.find(
-              (u) => u.id === parsed.id || u.username === parsed.username || (parsed.email && u.email === parsed.email)
+            freshUser = data.users.find(
+              (u) =>
+                u.id === parsed.id ||
+                (u.username && parsed.username && u.username.toLowerCase() === parsed.username.toLowerCase()) ||
+                (parsed.email && u.email && u.email.toLowerCase() === parsed.email.toLowerCase())
             );
-            if (freshUser) {
-              setCurrentUser(freshUser);
-              setAuthenticatedUser(freshUser);
-              localStorage.setItem('cleanpro_current_user', JSON.stringify(freshUser));
-              localStorage.setItem('cleanpro_auth_user', JSON.stringify(freshUser));
-            }
+          } catch {
+            // ignore
+          }
+        }
+
+        // Si no hay sesión guardada o no coincidió, sincronizar con el rol actual
+        if (!freshUser) {
+          if (currentRole === 'admin') {
+            freshUser = data.users.find((u) => u.username === 'haroldo90' || u.role === 'admin');
+          } else if (currentRole === 'operative') {
+            freshUser = data.users.find((u) => u.username === 'josesers' || u.role === 'operative');
+          } else if (currentRole === 'client') {
+            freshUser = data.users.find((u) => u.role === 'client');
+          }
+        }
+
+        if (freshUser) {
+          setCurrentUser((prev) => {
+            // Preservar si hay un avatar reciente en memoria que no haya cambiado
+            return {
+              ...(prev || {}),
+              ...freshUser,
+              avatarUrl: freshUser.avatarUrl || prev?.avatarUrl
+            };
+          });
+          setAuthenticatedUser((prev) => ({
+            ...(prev || {}),
+            ...freshUser,
+            avatarUrl: freshUser.avatarUrl || prev?.avatarUrl
+          }));
+          try {
+            localStorage.setItem('cleanpro_current_user', JSON.stringify(freshUser));
+            localStorage.setItem('cleanpro_auth_user', JSON.stringify(freshUser));
           } catch {
             // ignore
           }
