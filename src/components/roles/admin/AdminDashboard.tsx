@@ -1869,7 +1869,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <Building className="w-5 h-5 text-blue-600" />
                   Clientes Activos ({clients.length})
                 </h3>
-                <span className="text-xs text-slate-400 font-medium">Asignaciones directas</span>
+                <div className="flex items-center gap-2.5">
+                  {onOpenSupabaseModal && (
+                    <button
+                      onClick={onOpenSupabaseModal}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer transition-colors bg-blue-50/60 hover:bg-blue-100/60 px-2.5 py-1 rounded-xl"
+                      title="Sincronizar base de datos Supabase"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Sincronizar
+                    </button>
+                  )}
+                  <span className="text-xs text-slate-400 font-medium">Asignaciones directas</span>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -1919,6 +1930,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div><strong>Teléfono:</strong> {c.phone}</div>
                         <div><strong>Frecuencia:</strong> {c.contractFrequency}</div>
                         <div><strong>Reporte 3 Días:</strong> {c.auto3DayReport ? 'Activado' : 'Manual'}</div>
+                      </div>
+
+                      {/* CLIENT CREDENTIALS BADGE */}
+                      <div className="text-xs text-blue-900 bg-blue-50/80 border border-blue-100/90 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-1.5">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <KeyRound className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>Usuario: <strong className="font-mono text-blue-800">{c.username || (c.email ? c.email.split('@')[0] : 'contacto')}</strong></span>
+                        </span>
+                        <span className="text-slate-600 font-mono text-[11px] bg-white/80 px-2 py-0.5 rounded-md border border-blue-100">
+                          Pass: {c.password || 'Sers#Cliente2025!'}
+                        </span>
                       </div>
 
                       {/* ASSIGNED EMPLOYEE BADGE & ACTION */}

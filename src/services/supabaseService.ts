@@ -310,6 +310,16 @@ export const supabaseService = {
 
   // Fetch all data from Supabase
   async fetchAll() {
+    const safeQuery = async (queryPromise: any) => {
+      try {
+        const res = await queryPromise;
+        return res;
+      } catch (err) {
+        console.warn('Supabase query error caught safely:', err);
+        return { data: null, error: err };
+      }
+    };
+
     const [
       clientsRes,
       employeesRes,
@@ -324,38 +334,52 @@ export const supabaseService = {
       quotationsRes,
       usersRes
     ] = await Promise.all([
-      supabase.from('clients').select('*').order('name'),
-      supabase.from('employees').select('*').order('name'),
-      supabase.from('services').select('*').order('date', { ascending: false }),
-      supabase.from('incidents').select('*').order('date', { ascending: false }),
-      supabase.from('supplies').select('*').order('name'),
-      supabase.from('kit_items').select('*'),
-      supabase.from('warehouse_movements').select('*').order('date', { ascending: false }),
-      supabase.from('cycle_reports').select('*').order('generated_date', { ascending: false }),
-      supabase.from('supply_requests').select('*').order('request_date', { ascending: false }),
-      supabase.from('transactions').select('*').order('date', { ascending: false }),
-      supabase.from('quotations').select('*').order('date', { ascending: false }),
-      supabase.from('app_users').select('*').order('name')
+      safeQuery(supabase.from('clients').select('*').order('name')),
+      safeQuery(supabase.from('employees').select('*').order('name')),
+      safeQuery(supabase.from('services').select('*').order('date', { ascending: false })),
+      safeQuery(supabase.from('incidents').select('*').order('date', { ascending: false })),
+      safeQuery(supabase.from('supplies').select('*').order('name')),
+      safeQuery(supabase.from('kit_items').select('*')),
+      safeQuery(supabase.from('warehouse_movements').select('*').order('date', { ascending: false })),
+      safeQuery(supabase.from('cycle_reports').select('*').order('generated_date', { ascending: false })),
+      safeQuery(supabase.from('supply_requests').select('*').order('request_date', { ascending: false })),
+      safeQuery(supabase.from('transactions').select('*').order('date', { ascending: false })),
+      safeQuery(supabase.from('quotations').select('*').order('date', { ascending: false })),
+      safeQuery(supabase.from('app_users').select('*').order('name'))
     ]);
 
+    const usersData = usersRes?.data || [];
+
     return {
-      clients: clientsRes.data
-        ? clientsRes.data.map((c: any): ClientProfile => ({
-            id: c.id,
-            name: c.name,
-            contactPerson: c.contact_person,
-            email: c.email,
-            phone: c.phone,
-            address: c.address,
-            contractFrequency: c.contract_frequency,
-            auto3DayReport: c.auto_3day_report,
-            monthlyFee: Number(c.monthly_fee),
-            assignedEmployeeId: c.assigned_employee_id,
-            assignedEmployeeName: c.assigned_employee_name,
-            assignedEmployeePhone: c.assigned_employee_phone,
-            assignedEmployeeRole: c.assigned_employee_role,
-            notes: c.notes
-          }))
+      clients: clientsRes?.data
+        ? clientsRes.data.map((c: any): ClientProfile => {
+            const matchedUser = usersData.find(
+              (u: any) =>
+                u.id === `USR-${c.id}` ||
+                u.id === c.id ||
+                (u.email && c.email && u.email.toLowerCase().trim() === c.email.toLowerCase().trim()) ||
+                (u.assigned_zone && c.name && u.assigned_zone.toLowerCase().trim() === c.name.toLowerCase().trim())
+            );
+            return {
+              id: c.id,
+              name: c.name,
+              contactPerson: c.contact_person,
+              email: c.email,
+              phone: c.phone,
+              address: c.address,
+              contractFrequency: c.contract_frequency,
+              auto3DayReport: c.auto_3day_report,
+              monthlyFee: Number(c.monthly_fee) || 0,
+              assignedEmployeeId: c.assigned_employee_id,
+              assignedEmployeeName: c.assigned_employee_name,
+              assignedEmployeePhone: c.assigned_employee_phone,
+              assignedEmployeeRole: c.assigned_employee_role,
+              notes: c.notes,
+              status: matchedUser?.status || (c as any).status || 'activo',
+              username: matchedUser?.username || (c as any).username,
+              password: matchedUser?.password || (c as any).password
+            };
+          })
         : null,
       employees: employeesRes.data
         ? employeesRes.data.map((e: any): EmployeeProfile => ({
@@ -839,30 +863,31 @@ export const supabaseService = {
         };
       }
 
-      // Also upsert to app_users if client has credentials
-      if (client.username && client.password) {
-        try {
-          const userPayload = {
-            id: cleanId.startsWith('USR-') ? cleanId : `USR-${cleanId}`,
-            name: client.contactPerson || client.name,
-            email: cleanEmail,
-            username: client.username.trim(),
-            password: client.password,
-            role: 'client',
-            job_title: 'Representante de Sede',
-            phone: client.phone || '+52 55 1234 5678',
-            assigned_zone: client.name,
-            status: (client as any).status || 'activo',
-            notes: `Portal de Cliente: ${client.name}`,
-            updated_at: new Date().toISOString()
-          };
-          const { error: uErr } = await supabase.from('app_users').upsert(userPayload, { onConflict: 'id' });
-          if (uErr) {
-            console.warn('Could not sync client to app_users:', uErr);
-          }
-        } catch (uErr) {
+      // Also upsert to app_users if client has credentials or email
+      const finalUsername = client.username?.trim() || (cleanEmail ? cleanEmail.split('@')[0] : `cliente_${cleanId.slice(-4)}`);
+      const finalPassword = client.password?.trim() || 'Sers#Cliente2025!';
+
+      try {
+        const userPayload = {
+          id: cleanId.startsWith('USR-') ? cleanId : `USR-${cleanId}`,
+          name: client.contactPerson || client.name,
+          email: cleanEmail,
+          username: finalUsername,
+          password: finalPassword,
+          role: 'client',
+          job_title: 'Representante de Sede',
+          phone: client.phone || '+52 55 1234 5678',
+          assigned_zone: client.name,
+          status: (client as any).status || 'activo',
+          notes: `Portal de Cliente: ${client.name}`,
+          updated_at: new Date().toISOString()
+        };
+        const { error: uErr } = await supabase.from('app_users').upsert(userPayload, { onConflict: 'id' });
+        if (uErr) {
           console.warn('Could not sync client to app_users:', uErr);
         }
+      } catch (uErr) {
+        console.warn('Could not sync client to app_users:', uErr);
       }
 
       return { success: true };
@@ -877,6 +902,8 @@ export const supabaseService = {
     try {
       const { error } = await supabase.from('clients').delete().eq('id', clientId);
       if (error) throw error;
+      const usrId = clientId.startsWith('USR-') ? clientId : `USR-${clientId}`;
+      await supabase.from('app_users').delete().or(`id.eq.${clientId},id.eq.${usrId}`);
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting client from Supabase:', err);

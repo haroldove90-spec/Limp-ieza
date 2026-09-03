@@ -184,7 +184,15 @@ export default function App() {
   const [warehouseMovements, setWarehouseMovements] = useState<WarehouseMovement[]>(INITIAL_WAREHOUSE_MOVEMENTS);
   const [cycleReports, setCycleReports] = useState<Cycle3DayReport[]>(INITIAL_3DAY_REPORTS);
   const [supplyRequests, setSupplyRequests] = useState<SupplyRequest[]>(INITIAL_SUPPLY_REQUESTS);
-  const [clients, setClients] = useState<ClientProfile[]>(INITIAL_CLIENTS);
+  const [clients, setClients] = useState<ClientProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem('cleanpro_cached_clients');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return INITIAL_CLIENTS;
+  });
   const [employees, setEmployees] = useState<EmployeeProfile[]>(INITIAL_EMPLOYEES);
   const [finances, setFinances] = useState<TransactionRecord[]>(INITIAL_FINANCES);
   const [quotations, setQuotations] = useState<Quotation[]>(INITIAL_QUOTATIONS);
@@ -196,6 +204,11 @@ export default function App() {
 
       if (data.clients !== null) {
         setClients(data.clients);
+        try {
+          localStorage.setItem('cleanpro_cached_clients', JSON.stringify(data.clients));
+        } catch {
+          // ignore
+        }
       }
       if (data.employees !== null) {
         // Filter out any legacy mock employees
@@ -517,7 +530,7 @@ export default function App() {
             email: updatedUser.email,
             phone: updatedUser.phone || e.phone,
             jobTitle: updatedUser.jobTitle || e.jobTitle,
-            avatarUrl: updatedUser.avatarUrl || e.avatarUrl,
+            avatarUrl: updatedUser.avatarUrl !== undefined ? updatedUser.avatarUrl : e.avatarUrl,
             password: updatedUser.password || e.password,
             notes: updatedUser.notes || e.notes
           };
@@ -827,7 +840,15 @@ export default function App() {
       ...client,
       id: `CLI-${Date.now().toString().slice(-6)}`
     };
-    setClients((prev) => [...prev, newCli]);
+    setClients((prev) => {
+      const updated = [...prev, newCli];
+      try {
+        localStorage.setItem('cleanpro_cached_clients', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
     try {
       const res = await supabaseService.saveClient(newCli);
       if (res.success) {
@@ -841,9 +862,15 @@ export default function App() {
   };
 
   const handleUpdateClient = async (updatedClient: ClientProfile) => {
-    setClients((prev) =>
-      prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
-    );
+    setClients((prev) => {
+      const updated = prev.map((c) => (c.id === updatedClient.id ? updatedClient : c));
+      try {
+        localStorage.setItem('cleanpro_cached_clients', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
     try {
       const res = await supabaseService.saveClient(updatedClient);
       if (!res.success) {
@@ -855,7 +882,15 @@ export default function App() {
   };
 
   const handleDeleteClient = async (clientId: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== clientId));
+    setClients((prev) => {
+      const updated = prev.filter((c) => c.id !== clientId);
+      try {
+        localStorage.setItem('cleanpro_cached_clients', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
     try {
       await supabaseService.deleteClient(clientId);
     } catch (err) {
@@ -1081,7 +1116,14 @@ export default function App() {
     }
   };
 
-  const currentClientProfile = clients[0];
+  const currentClientProfile =
+    clients.find(
+      (c) =>
+        (currentUser?.id && (c.id === currentUser.id || c.id === currentUser.id.replace('USR-', ''))) ||
+        (currentUser?.email && c.email?.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) ||
+        (currentUser?.assignedZone && c.name?.toLowerCase().trim() === currentUser.assignedZone.toLowerCase().trim()) ||
+        (currentUser?.name && (c.contactPerson?.toLowerCase().trim() === currentUser.name.toLowerCase().trim() || c.name.toLowerCase().trim() === currentUser.name.toLowerCase().trim()))
+    ) || clients[0];
   const assignedEmp = employees.find(
     (e) => e.id === currentClientProfile?.assignedEmployeeId || e.name === currentClientProfile?.assignedEmployeeName
   ) || employees[0];

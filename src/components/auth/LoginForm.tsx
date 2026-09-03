@@ -84,26 +84,30 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           }
         }
 
-        // Si no se encontró en app_users ni en employees, buscar en la tabla clients por email o username
+        // Si no se encontró en app_users ni en employees, buscar en la tabla clients por email
         if (combined.length === 0) {
-          const [cliEmailRes, cliUserRes] = await Promise.all([
-            supabase.from('clients').select('*').ilike('email', cleanIdentifier),
-            supabase.from('clients').select('*').ilike('username', cleanIdentifier)
-          ]);
-          const cliCombined = [...(cliEmailRes.data || []), ...(cliUserRes.data || [])];
-          if (cliCombined.length > 0) {
-            combined = cliCombined.map((c: any) => ({
-              id: c.id,
-              name: c.contact_person || c.name,
-              email: c.email,
-              username: c.username || (c.email ? c.email.split('@')[0] : 'cliente'),
-              password: c.password || 'Sers#Cliente2025!',
-              role: 'client',
-              job_title: 'Contacto de Sede - ' + c.name,
-              phone: c.phone,
-              assigned_zone: c.address || c.name,
-              status: c.status || 'activo'
-            }));
+          try {
+            const cliEmailRes = await supabase
+              .from('clients')
+              .select('*')
+              .ilike('email', cleanIdentifier);
+            const cliList = cliEmailRes.data || [];
+            if (cliList.length > 0) {
+              combined = cliList.map((c: any) => ({
+                id: c.id,
+                name: c.contact_person || c.name,
+                email: c.email,
+                username: c.email ? c.email.split('@')[0] : 'cliente',
+                password: 'Sers#Cliente2025!',
+                role: 'client',
+                job_title: 'Contacto de Sede - ' + c.name,
+                phone: c.phone,
+                assigned_zone: c.name || c.address,
+                status: c.status || 'activo'
+              }));
+            }
+          } catch {
+            // ignore
           }
         }
 
@@ -185,7 +189,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             jobTitle: 'Director General / Administrador',
             phone: '+52 55 1234 5678',
             assignedZone: 'Oficina Central / Todas las Zonas',
-            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
             status: 'activo',
             notes: 'Administrador Principal SERS Soluciones'
           };

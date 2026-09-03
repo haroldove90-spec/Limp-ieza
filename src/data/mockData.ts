@@ -48,7 +48,7 @@ export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
     servicesCompletedThisMonth: 0,
     username: 'haroldo90',
     password: 'Chevropar#1970',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
     notes: 'Dirección General y administración central de la plataforma SERS'
   },
   {
@@ -63,7 +63,7 @@ export const INITIAL_EMPLOYEES: EmployeeProfile[] = [
     servicesCompletedThisMonth: 0,
     username: 'josesers',
     password: 'Sers#Segura2025!',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
     notes: 'Supervisión en campo, bitácoras fotográficas y control operativo'
   }
 ];
@@ -80,7 +80,7 @@ export const INITIAL_USERS: AppUser[] = [
     jobTitle: 'Director General / Administrador',
     phone: '+52 55 1234 5678',
     assignedZone: 'Oficina Central / Todas las Zonas',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
     status: 'activo',
     notes: 'Acceso total y administración central de la plataforma SERS'
   },
