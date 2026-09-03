@@ -546,15 +546,20 @@ export const supabaseService = {
   // Save or update an employee
   async saveEmployee(emp: EmployeeProfile): Promise<{ success: boolean; error?: string }> {
     try {
+      const cleanEmail =
+        emp.email && emp.email.trim() !== ''
+          ? emp.email.trim()
+          : `${(emp.username || emp.name).toLowerCase().replace(/[^a-z0-9]/g, '')}@serssoluciones.mx`;
+
       const payload = {
         id: emp.id,
         name: emp.name,
-        role: emp.role,
-        phone: emp.phone,
-        email: emp.email,
-        assigned_zone: emp.assignedZone,
-        status: emp.status,
-        services_completed_this_month: emp.servicesCompletedThisMonth,
+        role: emp.role || emp.jobTitle || 'Técnico Especialista',
+        phone: emp.phone || '+52 55 1234 5678',
+        email: cleanEmail,
+        assigned_zone: emp.assignedZone || 'Zona General',
+        status: emp.status || 'activo',
+        services_completed_this_month: emp.servicesCompletedThisMonth || 0,
         username: emp.username || null,
         password: emp.password || null,
         avatar_url: emp.avatarUrl || null,
@@ -563,7 +568,10 @@ export const supabaseService = {
         updated_at: new Date().toISOString()
       };
       const { error } = await supabase.from('employees').upsert(payload);
-      if (error) throw error;
+      if (error) {
+        console.error('Error in employees.upsert:', error);
+        throw error;
+      }
 
       // Also upsert to app_users if has username and password
       if (emp.username && emp.password) {
@@ -571,19 +579,22 @@ export const supabaseService = {
           const userPayload = {
             id: emp.id.startsWith('USR-') ? emp.id : `USR-${emp.id}`,
             name: emp.name,
-            email: emp.email,
+            email: cleanEmail,
             username: emp.username,
             password: emp.password,
-            role: emp.role.toLowerCase().includes('admin') ? 'admin' : 'operative',
+            role: emp.role?.toLowerCase().includes('admin') ? 'admin' : 'operative',
             job_title: emp.jobTitle || emp.role,
-            phone: emp.phone,
-            assigned_zone: emp.assignedZone,
-            avatar_url: emp.avatarUrl,
-            status: emp.status,
-            notes: emp.notes,
+            phone: emp.phone || '+52 55 1234 5678',
+            assigned_zone: emp.assignedZone || 'Zona General',
+            avatar_url: emp.avatarUrl || null,
+            status: emp.status || 'activo',
+            notes: emp.notes || null,
             updated_at: new Date().toISOString()
           };
-          await supabase.from('app_users').upsert(userPayload);
+          const { error: uErr } = await supabase.from('app_users').upsert(userPayload);
+          if (uErr) {
+            console.warn('Could not sync to app_users table:', uErr);
+          }
         } catch (uErr) {
           console.warn('Could not sync to app_users table:', uErr);
         }
@@ -654,36 +665,87 @@ export const supabaseService = {
     try {
       const updateData: any = { updated_at: new Date().toISOString() };
       if (data.name !== undefined) updateData.name = data.name;
-      if (data.email !== undefined) updateData.email = data.email;
+      if (data.email !== undefined && data.email.trim() !== '') updateData.email = data.email.trim();
       if (data.phone !== undefined) updateData.phone = data.phone;
-      if (data.password !== undefined) updateData.password = data.password;
+      if (data.password !== undefined && data.password.trim() !== '') updateData.password = data.password.trim();
       if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
       if (data.notes !== undefined) updateData.notes = data.notes;
       if (data.jobTitle !== undefined) updateData.job_title = data.jobTitle;
 
-      try {
-        await supabase.from('app_users').update(updateData).eq('id', userId);
-      } catch (uErr) {
-        console.warn('app_users update:', uErr);
+      // 1. Update in app_users
+      let userUpdated = false;
+      const { data: uRes1, error: uErr1 } = await supabase
+        .from('app_users')
+        .update(updateData)
+        .eq('id', userId)
+        .select();
+
+      if (uRes1 && uRes1.length > 0) {
+        userUpdated = true;
+      } else if (data.username || data.email) {
+        const orConditions = [];
+        if (data.username) orConditions.push(`username.eq.${data.username}`);
+        if (data.email) orConditions.push(`email.eq.${data.email}`);
+        if (orConditions.length > 0) {
+          const { data: uRes2 } = await supabase
+            .from('app_users')
+            .update(updateData)
+            .or(orConditions.join(','))
+            .select();
+          if (uRes2 && uRes2.length > 0) userUpdated = true;
+        }
       }
 
-      // Also update in employees if matches
-      try {
-        const empUpdateData: any = { updated_at: new Date().toISOString() };
-        if (data.name !== undefined) empUpdateData.name = data.name;
-        if (data.email !== undefined) empUpdateData.email = data.email;
-        if (data.phone !== undefined) empUpdateData.phone = data.phone;
-        if (data.password !== undefined) empUpdateData.password = data.password;
-        if (data.avatarUrl !== undefined) empUpdateData.avatar_url = data.avatarUrl;
-        if (data.notes !== undefined) empUpdateData.notes = data.notes;
-        
-        await supabase.from('employees').update(empUpdateData).or(`id.eq.${userId},username.eq.${data.username || ''}`);
-      } catch (eErr) {
-        console.warn('employees update:', eErr);
+      // If user row wasn't present in app_users yet, insert it
+      if (!userUpdated && (data.username || userId)) {
+        await supabase.from('app_users').upsert({
+          id: userId.startsWith('USR-') ? userId : `USR-${userId}`,
+          name: data.name || 'Harold Anguiano Morales',
+          email: data.email || (data.username ? `${data.username}@serssoluciones.mx` : 'haroldo90@hotmail.com'),
+          username: data.username || 'haroldo90',
+          password: data.password || 'Chevropar#1970',
+          role: data.role || 'admin',
+          avatar_url: data.avatarUrl || null,
+          job_title: data.jobTitle || 'Director General / Administrador',
+          phone: data.phone || '+52 55 1234 5678',
+          status: 'activo',
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      // 2. Also update in employees table (for photos, name, phone, etc.)
+      const empUpdateData: any = { updated_at: new Date().toISOString() };
+      if (data.name !== undefined) empUpdateData.name = data.name;
+      if (data.email !== undefined && data.email.trim() !== '') empUpdateData.email = data.email.trim();
+      if (data.phone !== undefined) empUpdateData.phone = data.phone;
+      if (data.password !== undefined && data.password.trim() !== '') empUpdateData.password = data.password.trim();
+      if (data.avatarUrl !== undefined) empUpdateData.avatar_url = data.avatarUrl;
+      if (data.notes !== undefined) empUpdateData.notes = data.notes;
+      if (data.jobTitle !== undefined) empUpdateData.job_title = data.jobTitle;
+
+      const empOrConditions = [`id.eq.${userId}`];
+      if (userId.startsWith('USR-')) {
+        empOrConditions.push(`id.eq.${userId.replace('USR-', 'EMP-')}`);
+      }
+      if (data.username) {
+        empOrConditions.push(`username.eq.${data.username}`);
+      }
+      if (data.email) {
+        empOrConditions.push(`email.eq.${data.email}`);
+      }
+
+      const { error: eErr } = await supabase
+        .from('employees')
+        .update(empUpdateData)
+        .or(empOrConditions.join(','));
+
+      if (eErr) {
+        console.warn('employees table update warning:', eErr);
       }
 
       return { success: true };
     } catch (err: any) {
+      console.error('Error updating user profile in Supabase:', err);
       return { success: false, error: err.message };
     }
   },
@@ -704,24 +766,33 @@ export const supabaseService = {
   // Save or update a client
   async saveClient(client: ClientProfile): Promise<{ success: boolean; error?: string }> {
     try {
+      const cleanEmail =
+        client.email && client.email.trim() !== ''
+          ? client.email.trim()
+          : `${(client.username || client.name).toLowerCase().replace(/[^a-z0-9]/g, '')}@serssoluciones.mx`;
+
       const payload = {
         id: client.id,
         name: client.name,
-        contact_person: client.contactPerson,
-        email: client.email,
-        phone: client.phone,
-        address: client.address,
-        contract_frequency: client.contractFrequency,
+        contact_person: client.contactPerson || 'Responsable de Sede',
+        email: cleanEmail,
+        phone: client.phone || '+52 55 1234 5678',
+        address: client.address || 'Ciudad de México',
+        contract_frequency: client.contractFrequency || 'Lunes a Sábado',
         auto_3day_report: client.auto3DayReport ?? true,
         monthly_fee: client.monthlyFee || 0,
         assigned_employee_id: client.assignedEmployeeId || null,
         assigned_employee_name: client.assignedEmployeeName || null,
         assigned_employee_phone: client.assignedEmployeePhone || null,
         assigned_employee_role: client.assignedEmployeeRole || null,
-        notes: client.notes || null
+        notes: client.notes || null,
+        updated_at: new Date().toISOString()
       };
       const { error } = await supabase.from('clients').upsert(payload);
-      if (error) throw error;
+      if (error) {
+        console.error('Error in clients.upsert:', error);
+        throw error;
+      }
 
       // Also upsert to app_users if client has credentials
       if (client.username && client.password) {
@@ -729,18 +800,21 @@ export const supabaseService = {
           const userPayload = {
             id: client.id.startsWith('USR-') ? client.id : `USR-${client.id}`,
             name: client.contactPerson || client.name,
-            email: client.email || null,
+            email: cleanEmail,
             username: client.username,
             password: client.password,
             role: 'client',
             job_title: 'Representante de Sede',
-            phone: client.phone || '+52 55 0000 0000',
+            phone: client.phone || '+52 55 1234 5678',
             assigned_zone: client.name,
-            status: client.status || 'activo',
+            status: (client as any).status || 'activo',
             notes: `Portal de Cliente: ${client.name}`,
             updated_at: new Date().toISOString()
           };
-          await supabase.from('app_users').upsert(userPayload);
+          const { error: uErr } = await supabase.from('app_users').upsert(userPayload);
+          if (uErr) {
+            console.warn('Could not sync client to app_users:', uErr);
+          }
         } catch (uErr) {
           console.warn('Could not sync client to app_users:', uErr);
         }
@@ -972,20 +1046,128 @@ export const supabaseService = {
     }
   },
 
-  // Purge any legacy sample mock data from Supabase tables
+  // Save warehouse movement
+  async saveWarehouseMovement(wm: WarehouseMovement): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: wm.id,
+        date: wm.date,
+        time: wm.time,
+        supply_id: wm.supplyId,
+        supply_name: wm.supplyName,
+        type: wm.type,
+        quantity: wm.quantity,
+        unit: wm.unit,
+        operative_name: wm.operativeName,
+        reason: wm.reason,
+        service_or_location: wm.serviceOrLocation || null
+      };
+      const { error } = await supabase.from('warehouse_movements').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving warehouse movement to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete warehouse movement
+  async deleteWarehouseMovement(movementId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('warehouse_movements').delete().eq('id', movementId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting warehouse movement from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save kit item
+  async saveKitItem(k: KitItem): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: k.id,
+        name: k.name,
+        unit: k.unit,
+        quantity_assigned: k.quantityAssigned,
+        checked_in: k.checkedIn,
+        status: k.status,
+        notes: k.notes || null
+      };
+      const { error } = await supabase.from('kit_items').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving kit item to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save 3-day cycle report
+  async saveCycleReport(cr: Cycle3DayReport): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: cr.id,
+        client_id: cr.clientId,
+        client_name: cr.clientName,
+        period_start: cr.periodStart,
+        period_end: cr.periodEnd,
+        cycle_number: cr.cycleNumber,
+        generated_date: cr.generatedDate,
+        status: cr.status,
+        items: cr.items
+      };
+      const { error } = await supabase.from('cycle_reports').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving cycle report to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Save supply request
+  async saveSupplyRequest(sr: SupplyRequest): Promise<{ success: boolean; error?: string }> {
+    try {
+      const payload = {
+        id: sr.id,
+        client_id: sr.clientId,
+        client_name: sr.clientName,
+        request_date: sr.requestDate,
+        cycle_report_id: sr.cycleReportId || null,
+        status: sr.status,
+        items: sr.items,
+        notes: sr.notes || null,
+        total_estimated_cost: sr.totalEstimatedCost
+      };
+      const { error } = await supabase.from('supply_requests').upsert(payload);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving supply request to Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Delete supply request
+  async deleteSupplyRequest(requestId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('supply_requests').delete().eq('id', requestId);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting supply request from Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Purge legacy sample mock data from Supabase tables (Only called manually)
   async purgeMockDataFromDatabase(): Promise<{ success: boolean; error?: string }> {
     try {
-      // Mock clients
-      await supabase.from('clients').delete().in('id', ['CLI-01', 'CLI-02', 'CLI-03', 'CLI-04']);
-      // Mock services
-      await supabase.from('services').delete().in('id', ['SRV-100', 'SRV-101', 'SRV-102', 'SRV-103']);
-      // Mock incidents
-      await supabase.from('incidents').delete().in('id', ['INC-201', 'INC-202']);
-      // Mock 3day reports & requests
-      await supabase.from('cycle_reports').delete().in('id', ['RPT-3D-2026-08A', 'RPT-3D-2026-08B']);
-      await supabase.from('supply_requests').delete().in('id', ['REQ-501', 'REQ-498']);
-      // Mock employees (Carlos, Lucia, Miguel)
-      await supabase.from('employees').delete().in('id', ['EMP-01', 'EMP-02', 'EMP-03']);
+      // Delete only known demo companies
+      await supabase.from('clients').delete().in('name', ['SkyTower Corporativo', 'Clínica Dental Sonrisas', 'Gimnasio FitZone 24/7', 'Residencial Los Álamos']);
+      await supabase.from('employees').delete().in('username', ['carlos.mendoza', 'lucia.santos', 'miguel.rivas']);
       await supabase.from('app_users').delete().in('username', ['carlos.mendoza', 'lucia.santos', 'miguel.rivas', 'cliente.skytower']);
       return { success: true };
     } catch (err: any) {

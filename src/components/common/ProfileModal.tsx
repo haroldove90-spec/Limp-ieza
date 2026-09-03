@@ -52,27 +52,61 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Handle Photo File Upload
+  // Handle Photo File Upload with automatic smart canvas compression
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setStatusMessage({ type: 'error', text: 'Por favor selecciona un archivo de imagen válido.' });
-      return;
-    }
-
-    // Limit file size to 2MB for base64 storage
-    if (file.size > 2 * 1024 * 1024) {
-      setStatusMessage({ type: 'error', text: 'La imagen supera los 2MB. Selecciona una más ligera.' });
+      setStatusMessage({ type: 'error', text: 'Por favor selecciona un archivo de imagen válido (JPG, PNG o WEBP).' });
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (loadEvt) => {
-      const dataUrl = loadEvt.target?.result as string;
-      setAvatarUrl(dataUrl);
-      setStatusMessage({ type: 'success', text: 'Foto cargada correctamente. Recuerda guardar los cambios.' });
+      const rawDataUrl = loadEvt.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 400;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedUrl = canvas.toDataURL('image/jpeg', 0.85);
+            setAvatarUrl(compressedUrl);
+            setStatusMessage({ type: 'success', text: 'Foto cargada y optimizada. Haz clic en "Guardar Cambios" para sincronizarla con Supabase.' });
+          } else {
+            setAvatarUrl(rawDataUrl);
+            setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar Cambios".' });
+          }
+        } catch {
+          setAvatarUrl(rawDataUrl);
+          setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar Cambios".' });
+        }
+      };
+      img.onerror = () => {
+        setAvatarUrl(rawDataUrl);
+        setStatusMessage({ type: 'success', text: 'Foto cargada. Recuerda hacer clic en "Guardar Cambios".' });
+      };
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   };
@@ -134,6 +168,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       // 3. Save to localStorage
       try {
         localStorage.setItem('cleanpro_current_user', JSON.stringify(updatedUser));
+        localStorage.setItem('cleanpro_auth_user', JSON.stringify(updatedUser));
       } catch {
         // ignore
       }
