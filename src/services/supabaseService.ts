@@ -551,8 +551,10 @@ export const supabaseService = {
           ? emp.email.trim()
           : `${(emp.username || emp.name).toLowerCase().replace(/[^a-z0-9]/g, '')}@serssoluciones.mx`;
 
+      const cleanId = emp.id && emp.id.trim() ? emp.id.trim() : `EMP-${Date.now()}`;
+
       const payload = {
-        id: emp.id,
+        id: cleanId,
         name: emp.name,
         role: emp.role || emp.jobTitle || 'Técnico Especialista',
         phone: emp.phone || '+52 55 1234 5678',
@@ -567,7 +569,7 @@ export const supabaseService = {
         job_title: emp.jobTitle || emp.role || null,
         updated_at: new Date().toISOString()
       };
-      const { error } = await supabase.from('employees').upsert(payload);
+      const { error } = await supabase.from('employees').upsert(payload, { onConflict: 'id' });
       if (error) {
         console.error('Error in employees.upsert:', error);
         throw error;
@@ -577,7 +579,7 @@ export const supabaseService = {
       if (emp.username && emp.password) {
         try {
           const userPayload = {
-            id: emp.id.startsWith('USR-') ? emp.id : `USR-${emp.id}`,
+            id: cleanId.startsWith('USR-') ? cleanId : `USR-${cleanId}`,
             name: emp.name,
             email: cleanEmail,
             username: emp.username,
@@ -591,7 +593,7 @@ export const supabaseService = {
             notes: emp.notes || null,
             updated_at: new Date().toISOString()
           };
-          const { error: uErr } = await supabase.from('app_users').upsert(userPayload);
+          const { error: uErr } = await supabase.from('app_users').upsert(userPayload, { onConflict: 'id' });
           if (uErr) {
             console.warn('Could not sync to app_users table:', uErr);
           }
@@ -625,7 +627,7 @@ export const supabaseService = {
         notes: user.notes || null,
         updated_at: new Date().toISOString()
       };
-      const { error } = await supabase.from('app_users').upsert(payload);
+      const { error } = await supabase.from('app_users').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
 
       // Also sync to employees if operative or admin
@@ -647,7 +649,7 @@ export const supabaseService = {
             job_title: user.jobTitle,
             updated_at: new Date().toISOString()
           };
-          await supabase.from('employees').upsert(empPayload);
+          await supabase.from('employees').upsert(empPayload, { onConflict: 'id' });
         } catch (eErr) {
           console.warn('Could not sync to employees table:', eErr);
         }
@@ -793,10 +795,12 @@ export const supabaseService = {
           ? client.email.trim()
           : `${(client.username || client.name).toLowerCase().replace(/[^a-z0-9]/g, '')}@serssoluciones.mx`;
 
+      const cleanId = client.id && client.id.trim() ? client.id.trim() : `CLI-${Date.now()}`;
+
       const payload = {
-        id: client.id,
-        name: client.name,
-        contact_person: client.contactPerson || 'Responsable de Sede',
+        id: cleanId,
+        name: client.name?.trim() || 'Cliente Sin Nombre',
+        contact_person: client.contactPerson?.trim() || 'Responsable de Sede',
         email: cleanEmail,
         phone: client.phone || '+52 55 1234 5678',
         address: client.address || 'Ciudad de México',
@@ -810,9 +814,15 @@ export const supabaseService = {
         notes: client.notes || null,
         updated_at: new Date().toISOString()
       };
-      const { error } = await supabase.from('clients').upsert(payload);
+      const { error } = await supabase.from('clients').upsert(payload, { onConflict: 'id' });
       if (error) {
         console.error('Error in clients.upsert:', error);
+        if (error.code === 'PGRST125') {
+          return {
+            success: false,
+            error: 'Error de ruta en Supabase (PGRST125): el servidor aún está recargando el esquema. Por favor ejecuta "NOTIFY pgrst, \'reload schema\';" o recarga en 5 segundos.'
+          };
+        }
         throw error;
       }
 
@@ -820,10 +830,10 @@ export const supabaseService = {
       if (client.username && client.password) {
         try {
           const userPayload = {
-            id: client.id.startsWith('USR-') ? client.id : `USR-${client.id}`,
+            id: cleanId.startsWith('USR-') ? cleanId : `USR-${cleanId}`,
             name: client.contactPerson || client.name,
             email: cleanEmail,
-            username: client.username,
+            username: client.username.trim(),
             password: client.password,
             role: 'client',
             job_title: 'Representante de Sede',
@@ -833,7 +843,7 @@ export const supabaseService = {
             notes: `Portal de Cliente: ${client.name}`,
             updated_at: new Date().toISOString()
           };
-          const { error: uErr } = await supabase.from('app_users').upsert(userPayload);
+          const { error: uErr } = await supabase.from('app_users').upsert(userPayload, { onConflict: 'id' });
           if (uErr) {
             console.warn('Could not sync client to app_users:', uErr);
           }
@@ -845,7 +855,7 @@ export const supabaseService = {
       return { success: true };
     } catch (err: any) {
       console.error('Error saving client to Supabase:', err);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Error guardando cliente en Supabase' };
     }
   },
 
@@ -880,7 +890,7 @@ export const supabaseService = {
         total_cost: service.totalCost || 0,
         client_signature: service.clientSignature || null
       };
-      const { error } = await supabase.from('services').upsert(payload);
+      const { error } = await supabase.from('services').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -929,7 +939,7 @@ export const supabaseService = {
         resolved_by_role: incident.resolvedByRole || null,
         client_rating: incident.clientRating || null
       };
-      const { error } = await supabase.from('incidents').upsert(payload);
+      const { error } = await supabase.from('incidents').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -962,7 +972,7 @@ export const supabaseService = {
         minimum_stock: supply.minimumStock,
         cost_per_unit: supply.costPerUnit
       };
-      const { error } = await supabase.from('supplies').upsert(payload);
+      const { error } = await supabase.from('supplies').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -1026,7 +1036,7 @@ export const supabaseService = {
         notes: quote.notes,
         status: quote.status
       };
-      const { error } = await supabase.from('quotations').upsert(payload);
+      const { error } = await supabase.from('quotations').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -1060,7 +1070,7 @@ export const supabaseService = {
         amount: f.amount,
         status: f.status
       };
-      const { error } = await supabase.from('transactions').upsert(payload);
+      const { error } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -1085,7 +1095,7 @@ export const supabaseService = {
         reason: wm.reason,
         service_or_location: wm.serviceOrLocation || null
       };
-      const { error } = await supabase.from('warehouse_movements').upsert(payload);
+      const { error } = await supabase.from('warehouse_movements').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -1118,7 +1128,7 @@ export const supabaseService = {
         status: k.status,
         notes: k.notes || null
       };
-      const { error } = await supabase.from('kit_items').upsert(payload);
+      const { error } = await supabase.from('kit_items').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -1141,7 +1151,7 @@ export const supabaseService = {
         status: cr.status,
         items: cr.items
       };
-      const { error } = await supabase.from('cycle_reports').upsert(payload);
+      const { error } = await supabase.from('cycle_reports').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
@@ -1164,7 +1174,7 @@ export const supabaseService = {
         notes: sr.notes || null,
         total_estimated_cost: sr.totalEstimatedCost
       };
-      const { error } = await supabase.from('supply_requests').upsert(payload);
+      const { error } = await supabase.from('supply_requests').upsert(payload, { onConflict: 'id' });
       if (error) throw error;
       return { success: true };
     } catch (err: any) {

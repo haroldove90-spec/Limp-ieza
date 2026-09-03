@@ -825,7 +825,7 @@ export default function App() {
   const handleAddClient = (client: Omit<ClientProfile, 'id'>) => {
     const newCli: ClientProfile = {
       ...client,
-      id: `CLI-${Date.now().toString().slice(-4)}`
+      id: `CLI-${Date.now().toString().slice(-6)}`
     };
     setClients((prev) => [...prev, newCli]);
     supabaseService.saveClient(newCli).catch((err) => console.error('Error guardando cliente en Supabase:', err));
@@ -1259,6 +1259,9 @@ export default function App() {
           navItems={navItems}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          isAdmin={isAdmin}
+          currentRole={currentRole}
+          onSelectRole={handleSelectRole}
         />
       </div>
 

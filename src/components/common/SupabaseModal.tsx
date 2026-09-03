@@ -361,12 +361,35 @@ CREATE POLICY "Acceso total a transacciones" ON public.transactions FOR ALL USIN
 DROP POLICY IF EXISTS "Acceso total a cotizaciones" ON public.quotations;
 CREATE POLICY "Acceso total a cotizaciones" ON public.quotations FOR ALL USING (true) WITH CHECK (true);
 
--- REALTIME
-ALTER PUBLICATION supabase_realtime ADD TABLE 
-    public.clients, public.employees, public.services, 
-    public.incidents, public.supplies, public.kit_items, 
-    public.warehouse_movements, public.cycle_reports, 
-    public.supply_requests, public.transactions, public.quotations;`;
+-- REALTIME SEGURO (Evita el error: relation is already member of publication)
+DO $$
+DECLARE
+  t text;
+  tables text[] := ARRAY[
+    'clients', 'employees', 'services', 
+    'incidents', 'supplies', 'kit_items', 
+    'warehouse_movements', 'cycle_reports', 
+    'supply_requests', 'transactions', 'quotations'
+  ];
+BEGIN
+  FOREACH t IN ARRAY tables LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_publication_tables 
+      WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = t
+    ) THEN
+      BEGIN
+        EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END;
+    END IF;
+  END LOOP;
+END $$;
+
+-- RECARGAR CACHÉ DE ESQUEMA EN POSTGREST INMEDIATAMENTE (Evita error PGRST125)
+NOTIFY pgrst, 'reload schema';`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(sqlScript);
@@ -541,7 +564,10 @@ ON CONFLICT (id) DO UPDATE SET
     username = EXCLUDED.username,
     password = EXCLUDED.password,
     status = EXCLUDED.status,
-    updated_at = NOW();`;
+    updated_at = NOW();
+
+-- RECARGAR CACHÉ DE ESQUEMA EN POSTGREST
+NOTIFY pgrst, 'reload schema';`;
 
   const copyUsersSqlToClipboard = () => {
     navigator.clipboard.writeText(usersCredentialsSqlScript);

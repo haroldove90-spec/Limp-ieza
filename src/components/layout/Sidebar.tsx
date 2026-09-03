@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole, AppUser } from '../../types';
-import { Sparkles, LogOut, LucideIcon, User, Settings } from 'lucide-react';
+import { Sparkles, LogOut, LucideIcon, User, Settings, ShieldCheck, HardHat, Building2 } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 import { PWAInstallButton } from '../common/PWAInstallButton';
 
@@ -113,6 +113,63 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Bottom Profile & Actions Area */}
       <div className="space-y-3 pt-4 border-t border-slate-100">
+        {/* Role Switcher for Admin */}
+        {(isAdmin || onSelectRole) && onSelectRole && (
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5 shadow-xs">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-[10px] font-extrabold tracking-wider text-slate-500 uppercase">
+                Cambiar Rol
+              </span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                Admin
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              <button
+                type="button"
+                onClick={() => onSelectRole('admin')}
+                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
+                  currentRole === 'admin'
+                    ? 'bg-slate-900 text-white font-bold shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium'
+                }`}
+                title="Vista Administrador"
+              >
+                <ShieldCheck className={`w-4 h-4 mb-0.5 ${currentRole === 'admin' ? 'text-blue-400' : 'text-slate-500'}`} />
+                <span className="text-[10px] leading-tight">Admin</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectRole('operative')}
+                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
+                  currentRole === 'operative'
+                    ? 'bg-blue-600 text-white font-bold shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium'
+                }`}
+                title="Vista Operativa"
+              >
+                <HardHat className={`w-4 h-4 mb-0.5 ${currentRole === 'operative' ? 'text-white' : 'text-slate-500'}`} />
+                <span className="text-[10px] leading-tight">Operativo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectRole('client')}
+                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
+                  currentRole === 'client'
+                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70 font-medium'
+                }`}
+                title="Vista Cliente"
+              >
+                <Building2 className={`w-4 h-4 mb-0.5 ${currentRole === 'client' ? 'text-white' : 'text-slate-500'}`} />
+                <span className="text-[10px] leading-tight">Cliente</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Profile Card Button */}
         {onOpenProfile && (
           <button
