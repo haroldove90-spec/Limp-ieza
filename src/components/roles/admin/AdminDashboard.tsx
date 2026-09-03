@@ -40,7 +40,8 @@ import {
   Boxes,
   HardHat,
   Building2,
-  ArrowRight
+  ArrowRight,
+  KeyRound
 } from 'lucide-react';
 import {
   UserRole,
@@ -88,6 +89,12 @@ import {
   shareServiceReportWithEvidencesViaWhatsApp
 } from '../../../utils/serviceOrderUtils';
 import { downloadSystemWorkflowPDF, shareWorkflowViaWhatsApp } from '../../../utils/workflowDocumentUtils';
+import {
+  shareClientViaWhatsApp,
+  shareEmployeeViaWhatsApp,
+  buildDirectAccessUrl,
+  SYSTEM_PRODUCTION_URL
+} from '../../../utils/credentialsShareUtils';
 
 interface AdminDashboardProps {
   activeTab: string;
@@ -206,6 +213,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientContact, setNewClientContact] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('+52 55 1234 5678');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientUsername, setNewClientUsername] = useState('');
+  const [newClientPassword, setNewClientPassword] = useState('Sers#Cliente2025!');
+  const [sendClientWhatsAppOnCreate, setSendClientWhatsAppOnCreate] = useState(true);
   const [newClientAddress, setNewClientAddress] = useState('');
   const [newClientFee, setNewClientFee] = useState(12000);
   const [newClientAssignedEmp, setNewClientAssignedEmp] = useState(employees[0]?.id || '');
@@ -215,6 +227,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newEmpRole, setNewEmpRole] = useState('Técnico Especialista de Limpieza');
   const [newEmpZone, setNewEmpZone] = useState('Zona Centro');
   const [newEmpPhone, setNewEmpPhone] = useState('+52 55 1234 5678');
+  const [newEmpEmail, setNewEmpEmail] = useState('');
+  const [newEmpUsername, setNewEmpUsername] = useState('');
+  const [newEmpPassword, setNewEmpPassword] = useState('Sers#Segura2025!');
+  const [sendEmpWhatsAppOnCreate, setSendEmpWhatsAppOnCreate] = useState(true);
 
   const [showNewServiceModal, setShowNewServiceModal] = useState(false);
   const [srvClientName, setSrvClientName] = useState(clients[0]?.name || '');
@@ -779,42 +795,84 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!newClientName) return;
 
     const assignedEmp = employees.find((e) => e.id === newClientAssignedEmp);
+    const finalPhone = newClientPhone || '+52 55 1234 5678';
+    const finalEmail =
+      newClientEmail.trim() ||
+      'contacto@' + newClientName.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+    const finalUsername =
+      newClientUsername.trim() ||
+      'cliente_' + newClientName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
+    const finalPassword = newClientPassword.trim() || 'Sers#Cliente2025!';
 
-    onAddClient({
+    const clientPayload = {
       name: newClientName,
       contactPerson: newClientContact || 'Responsable de Sede',
-      email: 'contacto@' + newClientName.toLowerCase().replace(/\s+/g, '') + '.com',
-      phone: '+52 55 0000 0000',
+      email: finalEmail,
+      phone: finalPhone,
       address: newClientAddress || 'Ciudad de México',
-      contractFrequency: 'Lunes a Viernes',
+      contractFrequency: 'Lunes a Sábado',
       auto3DayReport: true,
       monthlyFee: newClientFee,
       assignedEmployeeId: assignedEmp?.id,
       assignedEmployeeName: assignedEmp?.name,
       assignedEmployeePhone: assignedEmp?.phone,
-      assignedEmployeeRole: assignedEmp?.role
-    });
+      assignedEmployeeRole: assignedEmp?.role,
+      username: finalUsername,
+      password: finalPassword,
+      status: 'activo' as const
+    };
+
+    onAddClient(clientPayload);
+
+    if (sendClientWhatsAppOnCreate) {
+      shareClientViaWhatsApp(clientPayload);
+    }
 
     setShowNewClientModal(false);
     setNewClientName('');
     setNewClientContact('');
     setNewClientAddress('');
+    setNewClientEmail('');
+    setNewClientUsername('');
+    setNewClientPassword('Sers#Cliente2025!');
   };
 
   // Employee Creation
   const handleCreateEmployee = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmpName) return;
-    onAddEmployee({
+
+    const finalPhone = newEmpPhone || '+52 55 1234 5678';
+    const finalEmail =
+      newEmpEmail.trim() ||
+      newEmpName.toLowerCase().replace(/\s+/g, '.') + '@cleanpro.com';
+    const finalUsername =
+      newEmpUsername.trim() ||
+      newEmpName.toLowerCase().replace(/\s+/g, '.');
+    const finalPassword = newEmpPassword.trim() || 'Sers#Segura2025!';
+
+    const employeePayload = {
       name: newEmpName,
       role: newEmpRole,
-      phone: newEmpPhone || '+52 55 1234 5678',
-      email: newEmpName.toLowerCase().replace(/\s+/g, '.') + '@cleanpro.com',
+      phone: finalPhone,
+      email: finalEmail,
       assignedZone: newEmpZone,
-      status: 'activo'
-    });
+      username: finalUsername,
+      password: finalPassword,
+      status: 'activo' as const
+    };
+
+    onAddEmployee(employeePayload);
+
+    if (sendEmpWhatsAppOnCreate) {
+      shareEmployeeViaWhatsApp(employeePayload);
+    }
+
     setShowNewEmployeeModal(false);
     setNewEmpName('');
+    setNewEmpEmail('');
+    setNewEmpUsername('');
+    setNewEmpPassword('Sers#Segura2025!');
   };
 
   // Service Creation
@@ -2086,6 +2144,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-end gap-1.5">
                         <button
                           type="button"
+                          onClick={() => shareClientViaWhatsApp(c)}
+                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs transition-colors"
+                          title="Enviar credenciales y enlace de acceso directo al rol de cliente por WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Credenciales WhatsApp</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setViewingClient(c)}
                           className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                           title="Ver ficha completa del cliente"
@@ -2445,6 +2512,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono / WhatsApp:</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+52 55 1234 5678"
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Correo Electrónico:</label>
+                  <input
+                    type="email"
+                    placeholder="contacto@empresa.com"
+                    value={newClientEmail}
+                    onChange={(e) => setNewClientEmail(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Dirección de Sede:</label>
                 <input
@@ -2455,29 +2545,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Técnico Operativo Asignado:</label>
-                <select
-                  value={newClientAssignedEmp}
-                  onChange={(e) => setNewClientAssignedEmp(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500 bg-white font-medium"
-                >
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.role})
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Técnico Operativo Asignado:</label>
+                  <select
+                    value={newClientAssignedEmp}
+                    onChange={(e) => setNewClientAssignedEmp(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500 bg-white font-medium"
+                  >
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} ({emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Cuota Mensual (MXN):</label>
+                  <input
+                    type="number"
+                    value={newClientFee}
+                    onChange={(e) => setNewClientFee(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Cuota Mensual (MXN):</label>
-                <input
-                  type="number"
-                  value={newClientFee}
-                  onChange={(e) => setNewClientFee(Number(e.target.value))}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
-                />
+
+              {/* Credenciales de Acceso Cliente */}
+              <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                  <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Credenciales para Acceso al Portal de Cliente</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Usuario / Nickname:</label>
+                    <input
+                      type="text"
+                      placeholder="ej. cliente_corporativo"
+                      value={newClientUsername}
+                      onChange={(e) => setNewClientUsername(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-emerald-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Contraseña:</label>
+                    <input
+                      type="text"
+                      placeholder="ej. Sers#Cliente2025!"
+                      value={newClientPassword}
+                      onChange={(e) => setNewClientPassword(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-emerald-500 bg-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sendClientWhatsAppOnCreate}
+                    onChange={(e) => setSendClientWhatsAppOnCreate(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <span className="text-xs text-emerald-800 font-semibold flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Enviar credenciales y enlace directo al cliente por WhatsApp
+                  </span>
+                </label>
               </div>
+
               <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
@@ -2488,9 +2624,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-blue-200"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-emerald-200 flex items-center gap-1.5"
                 >
-                  Registrar Cliente
+                  <Building2 className="w-4 h-4" />
+                  <span>Registrar Cliente</span>
                 </button>
               </div>
             </form>
@@ -2501,7 +2638,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* MODAL: NUEVO EMPLEADO */}
       {showNewEmployeeModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-slate-800 mb-1">Registrar Nuevo Empleado</h3>
             <p className="text-xs text-slate-400 mb-4">Personal técnico y operativo de campo</p>
 
@@ -2517,33 +2654,92 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
                 />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Puesto / Especialidad:</label>
-                <input
-                  type="text"
-                  value={newEmpRole}
-                  onChange={(e) => setNewEmpRole(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Puesto / Especialidad:</label>
+                  <input
+                    type="text"
+                    value={newEmpRole}
+                    onChange={(e) => setNewEmpRole(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Zona Asignada:</label>
+                  <input
+                    type="text"
+                    value={newEmpZone}
+                    onChange={(e) => setNewEmpZone(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono:</label>
-                <input
-                  type="text"
-                  value={newEmpPhone}
-                  onChange={(e) => setNewEmpPhone(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono / WhatsApp:</label>
+                  <input
+                    type="tel"
+                    required
+                    value={newEmpPhone}
+                    onChange={(e) => setNewEmpPhone(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Correo Electrónico:</label>
+                  <input
+                    type="email"
+                    placeholder="empleado@sers.com"
+                    value={newEmpEmail}
+                    onChange={(e) => setNewEmpEmail(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Zona Asignada:</label>
-                <input
-                  type="text"
-                  value={newEmpZone}
-                  onChange={(e) => setNewEmpZone(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-blue-500"
-                />
+
+              {/* Credenciales de Acceso Operativo */}
+              <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                  <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Credenciales para Acceso Operativo</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Usuario / Nickname:</label>
+                    <input
+                      type="text"
+                      placeholder="ej. roberto.sanchez"
+                      value={newEmpUsername}
+                      onChange={(e) => setNewEmpUsername(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-emerald-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Contraseña:</label>
+                    <input
+                      type="text"
+                      placeholder="ej. Sers#Segura2025!"
+                      value={newEmpPassword}
+                      onChange={(e) => setNewEmpPassword(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-emerald-500 bg-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sendEmpWhatsAppOnCreate}
+                    onChange={(e) => setSendEmpWhatsAppOnCreate(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <span className="text-xs text-emerald-800 font-semibold flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Enviar credenciales y enlace directo al empleado por WhatsApp
+                  </span>
+                </label>
               </div>
+
               <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
@@ -2554,9 +2750,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-slate-200"
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-md shadow-slate-200 flex items-center gap-1.5"
                 >
-                  Registrar Empleado
+                  <HardHat className="w-4 h-4" />
+                  <span>Registrar Empleado</span>
                 </button>
               </div>
             </form>

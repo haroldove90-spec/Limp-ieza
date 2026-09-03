@@ -91,6 +91,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           }
         }
 
+        // Si no se encontró en app_users ni en employees, buscar en la tabla clients por email o username
+        if (combined.length === 0) {
+          const [cliEmailRes, cliUserRes] = await Promise.all([
+            supabase.from('clients').select('*').ilike('email', cleanIdentifier),
+            supabase.from('clients').select('*').ilike('username', cleanIdentifier)
+          ]);
+          const cliCombined = [...(cliEmailRes.data || []), ...(cliUserRes.data || [])];
+          if (cliCombined.length > 0) {
+            combined = cliCombined.map((c: any) => ({
+              id: c.id,
+              name: c.contact_person || c.name,
+              email: c.email,
+              username: c.username || (c.email ? c.email.split('@')[0] : 'cliente'),
+              password: c.password || 'Sers#Cliente2025!',
+              role: 'client',
+              job_title: 'Contacto de Sede - ' + c.name,
+              phone: c.phone,
+              assigned_zone: c.address || c.name,
+              status: c.status || 'activo'
+            }));
+          }
+        }
+
         // Si todavía no hay registros y no hubo error de conexión, intentar traer todos para filtro local
         if (combined.length === 0) {
           const { data, error } = await supabase.from('app_users').select('*');

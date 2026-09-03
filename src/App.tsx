@@ -220,6 +220,97 @@ export default function App() {
     loadDataFromSupabase();
   }, []);
 
+  // Handle direct access via WhatsApp credentials link (e.g. ?role=client&user=...&pass=...)
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlRole = searchParams.get('role') as UserRole | null;
+      const urlUser = searchParams.get('user');
+      const urlPass = searchParams.get('pass');
+
+      if (urlRole && ['operative', 'client', 'admin'].includes(urlRole)) {
+        const cleanUser = (urlUser || '').trim();
+        const cleanPass = (urlPass || '').trim();
+
+        // 1. Try to find in INITIAL_USERS
+        let matchedUser = INITIAL_USERS.find(
+          (u) =>
+            u.role === urlRole &&
+            (cleanUser
+              ? u.username?.toLowerCase() === cleanUser.toLowerCase() ||
+                u.email?.toLowerCase() === cleanUser.toLowerCase()
+              : true)
+        );
+
+        // 2. If not in INITIAL_USERS, try in employees or clients
+        if (!matchedUser && urlRole === 'operative') {
+          const emp = employees.find(
+            (e) =>
+              cleanUser &&
+              (e.username?.toLowerCase() === cleanUser.toLowerCase() ||
+                e.email?.toLowerCase() === cleanUser.toLowerCase())
+          );
+          if (emp) {
+            matchedUser = {
+              id: emp.id,
+              name: emp.name,
+              email: emp.email,
+              username: emp.username || cleanUser,
+              password: emp.password || cleanPass || 'Sers#Segura2025!',
+              role: 'operative',
+              phone: emp.phone,
+              jobTitle: emp.role,
+              assignedZone: emp.assignedZone,
+              status: 'activo'
+            };
+          }
+        } else if (!matchedUser && urlRole === 'client') {
+          const cli = clients.find(
+            (c) =>
+              cleanUser &&
+              (c.username?.toLowerCase() === cleanUser.toLowerCase() ||
+                c.email?.toLowerCase() === cleanUser.toLowerCase() ||
+                c.name?.toLowerCase().includes(cleanUser.toLowerCase()))
+          );
+          if (cli) {
+            matchedUser = {
+              id: cli.id,
+              name: cli.contactPerson || cli.name,
+              email: cli.email,
+              username: cli.username || cleanUser,
+              password: cli.password || cleanPass || 'Sers#Cliente2025!',
+              role: 'client',
+              phone: cli.phone,
+              jobTitle: 'Representante de Cliente',
+              assignedZone: cli.address,
+              status: 'activo'
+            };
+          }
+        }
+
+        // 3. Fallback direct synthesization
+        if (!matchedUser) {
+          matchedUser = {
+            id: `USR-DIRECT-${Date.now()}`,
+            name: cleanUser || (urlRole === 'client' ? 'Cliente Registrado' : 'Técnico Operativo'),
+            username: cleanUser || (urlRole === 'client' ? 'cliente' : 'operativo'),
+            email: cleanUser.includes('@') ? cleanUser : `${cleanUser || 'usuario'}@sers.com`,
+            role: urlRole as 'admin' | 'operative' | 'client',
+            phone: '+52 55 1234 5678',
+            jobTitle: urlRole === 'client' ? 'Portal de Cliente' : 'Técnico de Limpieza',
+            assignedZone: 'Zona de Operación',
+            password: cleanPass || 'Sers#2025!',
+            status: 'activo'
+          };
+        }
+
+        handleLoginSuccess(matchedUser);
+      }
+    } catch (err) {
+      console.warn('Error parsing direct access URL parameters:', err);
+    }
+  }, []);
+
   // Role switching and user synchronization (STRICTLY Admin only)
   const handleSelectRole = (role: UserRole) => {
     // Only administrators can navigate across different roles

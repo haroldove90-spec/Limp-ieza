@@ -15,7 +15,12 @@ import {
   DollarSign,
   FileText,
   Save,
-  Power
+  Power,
+  MessageSquare,
+  KeyRound,
+  ExternalLink,
+  Copy,
+  Check
 } from 'lucide-react';
 import {
   ClientProfile,
@@ -24,6 +29,10 @@ import {
   IncidentReport,
   EmployeeProfile
 } from '../../../types';
+import {
+  shareClientViaWhatsApp,
+  buildDirectAccessUrl
+} from '../../../utils/credentialsShareUtils';
 
 // ==========================================
 // 1. CLIENT DETAILS MODAL
@@ -156,6 +165,56 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
             </div>
           </div>
 
+          {/* Access Credentials & Direct Link for Client */}
+          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+                <KeyRound className="w-4 h-4 text-emerald-600" />
+                <span>Credenciales y Acceso Directo (Portal de Cliente)</span>
+              </div>
+              <span className="text-[10px] bg-emerald-200/60 text-emerald-900 font-semibold px-2 py-0.5 rounded-full">
+                Rol: Cliente
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-100">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Usuario o Correo:</span>
+                <span className="font-bold text-slate-800 break-all">{client.username || client.email || 'cliente_sers'}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-emerald-100">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Contraseña:</span>
+                <span className="font-bold text-slate-800">{client.password || 'Sers#Cliente2025!'}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => shareClientViaWhatsApp(client)}
+                className="w-full sm:w-auto px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                title="Compartir credenciales y enlace directo al portal por WhatsApp"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Compartir Acceso por WhatsApp</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const url = buildDirectAccessUrl('client', client.username || client.email, client.password || 'Sers#Cliente2025!');
+                  navigator.clipboard.writeText(url);
+                  alert('Enlace copiado al portapapeles:\n' + url);
+                }}
+                className="w-full sm:w-auto px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                title="Copiar enlace directo con credenciales"
+              >
+                <Copy className="w-3.5 h-3.5 text-slate-500" />
+                <span>Copiar Enlace Directo</span>
+              </button>
+            </div>
+          </div>
+
           {/* Configuration */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 flex items-center justify-between">
             <span>Reportes de Ciclo de 3 Días:</span>
@@ -234,7 +293,9 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     monthlyFee: client.monthlyFee || 0,
     auto3DayReport: client.auto3DayReport ?? true,
     status: client.status || 'activo',
-    assignedEmployeeId: client.assignedEmployeeId || ''
+    assignedEmployeeId: client.assignedEmployeeId || '',
+    username: client.username || '',
+    password: client.password || ''
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -393,6 +454,61 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                 Reporte de 3 Días Auto
               </label>
             </div>
+          </div>
+
+          {/* Client Portal Credentials */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+                <span>Credenciales para Portal de Cliente</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  shareClientViaWhatsApp({
+                    ...client,
+                    name: formData.name,
+                    contactPerson: formData.contactPerson,
+                    phone: formData.phone,
+                    email: formData.email,
+                    username: formData.username,
+                    password: formData.password
+                  });
+                }}
+                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-100/70 hover:bg-emerald-100 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                title="Compartir enlace directo y credenciales por WhatsApp"
+              >
+                <MessageSquare className="w-3 h-3" />
+                <span>Enviar WhatsApp</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 block mb-1">Usuario de Acceso:</label>
+                <input
+                  type="text"
+                  placeholder="ej. cliente_corporativo"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 block mb-1">Contraseña:</label>
+                <input
+                  type="text"
+                  placeholder="ej. Sers#Cliente2025!"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-blue-500 bg-white"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400">
+              Permite al cliente ingresar con este usuario/correo y contraseña a <span className="font-mono text-slate-600">https://limp-ieza.vercel.app/</span>
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">

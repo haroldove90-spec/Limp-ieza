@@ -722,6 +722,30 @@ export const supabaseService = {
       };
       const { error } = await supabase.from('clients').upsert(payload);
       if (error) throw error;
+
+      // Also upsert to app_users if client has credentials
+      if (client.username && client.password) {
+        try {
+          const userPayload = {
+            id: client.id.startsWith('USR-') ? client.id : `USR-${client.id}`,
+            name: client.contactPerson || client.name,
+            email: client.email || null,
+            username: client.username,
+            password: client.password,
+            role: 'client',
+            job_title: 'Representante de Sede',
+            phone: client.phone || '+52 55 0000 0000',
+            assigned_zone: client.name,
+            status: client.status || 'activo',
+            notes: `Portal de Cliente: ${client.name}`,
+            updated_at: new Date().toISOString()
+          };
+          await supabase.from('app_users').upsert(userPayload);
+        } catch (uErr) {
+          console.warn('Could not sync client to app_users:', uErr);
+        }
+      }
+
       return { success: true };
     } catch (err: any) {
       console.error('Error saving client to Supabase:', err);

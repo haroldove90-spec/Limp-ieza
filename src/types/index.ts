@@ -136,6 +136,8 @@ export interface ClientProfile {
   assignedEmployeeRole?: string;
   notes?: string;
   status?: 'activo' | 'inactivo';
+  username?: string;
+  password?: string;
 }
 
 export interface EmployeeProfile {

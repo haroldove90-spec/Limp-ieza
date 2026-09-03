@@ -29,6 +29,12 @@ import {
 } from 'lucide-react';
 import { COMPANY_BRAND } from '../../../constants/branding';
 import { cleanPhoneNumber } from '../../../utils/exportUtils';
+import {
+  SYSTEM_PRODUCTION_URL,
+  buildDirectAccessUrl,
+  buildEmployeeWhatsAppMessage,
+  shareEmployeeViaWhatsApp
+} from '../../../utils/credentialsShareUtils';
 
 interface StaffManagerProps {
   employees: EmployeeProfile[];
@@ -180,7 +186,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     });
   };
 
-  // Build WhatsApp Credentials Message
+  // Build WhatsApp Credentials Message with direct access to operative role
   const buildWhatsAppMessage = (
     empName: string,
     empUser: string,
@@ -188,41 +194,30 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     empRole: string,
     empZone: string
   ) => {
-    const origin = window.location.origin;
-    return `👋 *¡Hola ${empName}!*
-Te damos la bienvenida oficial al equipo de *${COMPANY_BRAND.name}*.
-
-Tus credenciales de acceso al sistema operativo son:
-👤 *Usuario:* ${empUser}
-🔑 *Contraseña:* ${empPass}
-🛡️ *Rol:* ${empRole}
-📍 *Zona de Servicio:* ${empZone}
-
-🌐 *Enlace de Ingreso:*
-${origin}
-
-_Por favor inicia sesión para consultar tu agenda diaria, registrar evidencias fotográficas antes/después y gestionar tu kit de insumos._`;
+    return buildEmployeeWhatsAppMessage({
+      name: empName,
+      username: empUser,
+      password: empPass,
+      role: empRole,
+      assignedZone: empZone
+    });
   };
 
   // Send credentials via WhatsApp directly
   const handleSendWhatsAppCredentials = (emp: EmployeeProfile) => {
-    const empUser = emp.username || 'usuario';
-    const empPass = emp.password || 'Clave asignada';
-    const msg = buildWhatsAppMessage(emp.name, empUser, empPass, emp.role, emp.assignedZone);
-    const cleanPhone = cleanPhoneNumber(emp.phone);
-
-    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
+    shareEmployeeViaWhatsApp(emp);
   };
 
   // Copy credentials to clipboard
   const handleCopyCredentials = (emp: EmployeeProfile) => {
-    const text = `CLEANPRO / SERS - Credenciales de Acceso
+    const directUrl = buildDirectAccessUrl('operative', emp.username || emp.email, emp.password);
+    const text = `${COMPANY_BRAND.name} - Credenciales de Acceso Operativo
 Personal: ${emp.name}
 Usuario: ${emp.username || 'No asignado'}
 Clave: ${emp.password || 'No asignada'}
-Rol: ${emp.role}
-Enlace: ${window.location.origin}`;
+Rol: ${emp.role} (Operativo)
+Zona: ${emp.assignedZone || 'No asignada'}
+Enlace Directo: ${directUrl}`;
 
     navigator.clipboard.writeText(text);
     setCopiedId(emp.id);
