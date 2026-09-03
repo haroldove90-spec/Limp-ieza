@@ -50,23 +50,26 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
   const [showAddMovementModal, setShowAddMovementModal] = useState(false);
   const [editingMovement, setEditingMovement] = useState<WarehouseMovement | null>(null);
   const [adjustingSupply, setAdjustingSupply] = useState<SupplyItem | null>(null);
-  const [newAdjustStockValue, setNewAdjustStockValue] = useState<number>(0);
+  const [newAdjustStockValue, setNewAdjustStockValue] = useState<string>('0');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [emailModalData, setEmailModalData] = useState<EmailModalData | null>(null);
 
   // Add Movement Form State
   const [selectedSupplyId, setSelectedSupplyId] = useState(supplies[0]?.id || '');
   const [movementType, setMovementType] = useState<'entrada' | 'salida'>('salida');
-  const [movementQty, setMovementQty] = useState<number>(1);
+  const [movementQty, setMovementQty] = useState<string>('1');
+  const [movementOperative, setMovementOperative] = useState<string>('');
   const [movementReason, setMovementReason] = useState('');
   const [movementLocation, setMovementLocation] = useState('');
 
   // Edit Movement Form State
   const [editSupplyId, setEditSupplyId] = useState('');
   const [editType, setEditType] = useState<'entrada' | 'salida'>('salida');
-  const [editQty, setEditQty] = useState<number>(1);
+  const [editQty, setEditQty] = useState<string>('1');
   const [editReason, setEditReason] = useState('');
   const [editLocation, setEditLocation] = useState('');
+
+  const selectedSupply = supplies.find((s) => s.id === selectedSupplyId);
 
   // Filter supplies for stock panel
   const filteredSupplies = supplies.filter((s) => {
@@ -98,7 +101,8 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
   const handleOpenAddModal = (presetSupplyId?: string, presetType?: 'entrada' | 'salida') => {
     if (presetSupplyId) setSelectedSupplyId(presetSupplyId);
     if (presetType) setMovementType(presetType);
-    setMovementQty(1);
+    setMovementQty('1');
+    setMovementOperative(operativeName || 'José del Carmen Sotero');
     setMovementReason('');
     setMovementLocation('');
     setShowAddMovementModal(true);
@@ -107,35 +111,45 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
   const handleSubmitNewMovement = (e: React.FormEvent) => {
     e.preventDefault();
     const supply = supplies.find((s) => s.id === selectedSupplyId);
-    if (!supply || movementQty <= 0) return;
+    const parsedQty = parseFloat(movementQty);
+    if (!supply || isNaN(parsedQty) || parsedQty <= 0) {
+      alert('Por favor ingrese una cantidad numérica válida mayor a 0.');
+      return;
+    }
+
+    const assignedOperative = movementOperative.trim() || operativeName || 'José del Carmen Sotero';
 
     onAddMovement({
       supplyId: supply.id,
       supplyName: supply.name,
       type: movementType,
-      quantity: Number(movementQty),
+      quantity: parsedQty,
       unit: supply.unit,
-      operativeName: operativeName || 'José del Carmen Sotero',
+      operativeName: assignedOperative,
       reason: movementReason || (movementType === 'salida' ? 'Toma de insumos a discreción para servicio' : 'Reingreso de insumos'),
       serviceOrLocation: movementLocation || 'Servicio en Campo'
     });
 
     setShowAddMovementModal(false);
-    showFeedback(`Movimiento registrado: ${movementType === 'salida' ? 'Salida' : 'Entrada'} de ${movementQty} ${supply.unit} de ${supply.name}`);
+    showFeedback(`Movimiento registrado: ${movementType === 'salida' ? 'Salida' : 'Entrada'} de ${parsedQty} ${supply.unit} de ${supply.name}`);
   };
 
   const handleOpenEditModal = (movement: WarehouseMovement) => {
     setEditingMovement(movement);
     setEditSupplyId(movement.supplyId);
     setEditType(movement.type);
-    setEditQty(movement.quantity);
+    setEditQty(String(movement.quantity));
     setEditReason(movement.reason);
     setEditLocation(movement.serviceOrLocation || '');
   };
 
   const handleSubmitEditMovement = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMovement || !onEditMovement || editQty <= 0) return;
+    const parsedQty = parseFloat(editQty);
+    if (!editingMovement || !onEditMovement || isNaN(parsedQty) || parsedQty <= 0) {
+      alert('Por favor ingrese una cantidad válida mayor a 0.');
+      return;
+    }
 
     const supply = supplies.find((s) => s.id === editSupplyId) || supplies[0];
 
@@ -145,7 +159,7 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
       supplyName: supply.name,
       unit: supply.unit,
       type: editType,
-      quantity: Number(editQty),
+      quantity: parsedQty,
       reason: editReason,
       serviceOrLocation: editLocation
     };
@@ -166,14 +180,18 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
 
   const handleOpenStockAdjust = (supply: SupplyItem) => {
     setAdjustingSupply(supply);
-    setNewAdjustStockValue(supply.currentStock);
+    setNewAdjustStockValue(String(supply.currentStock));
   };
 
   const handleSubmitStockAdjust = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adjustingSupply || !onAdjustStock) return;
-    onAdjustStock(adjustingSupply.id, Math.max(0, Number(newAdjustStockValue)));
-    showFeedback(`Existencia de ${adjustingSupply.name} ajustada a ${newAdjustStockValue} ${adjustingSupply.unit}.`);
+    const parsedStock = parseFloat(newAdjustStockValue);
+    if (!adjustingSupply || !onAdjustStock || isNaN(parsedStock) || parsedStock < 0) {
+      alert('Por favor ingrese un stock numérico válido igual o mayor a 0.');
+      return;
+    }
+    onAdjustStock(adjustingSupply.id, parsedStock);
+    showFeedback(`Existencia de ${adjustingSupply.name} ajustada a ${parsedStock} ${adjustingSupply.unit}.`);
     setAdjustingSupply(null);
   };
 
@@ -757,30 +775,103 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Cantidad a {movementType === 'salida' ? 'tomar' : 'ingresar'}:
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={movementQty}
-                    onChange={(e) => setMovementQty(Math.max(1, Number(e.target.value)))}
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono focus:outline-blue-500"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Cantidad a {movementType === 'salida' ? 'tomar' : 'ingresar'}:
+                    </label>
+                    {selectedSupply && (
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        Stock: {selectedSupply.currentStock} {selectedSupply.unit}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative flex items-center">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      required
+                      placeholder="0"
+                      value={movementQty}
+                      onChange={(e) => setMovementQty(e.target.value)}
+                      className="w-full pl-3.5 pr-20 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono font-bold text-slate-900 focus:outline-blue-500 focus:border-blue-500"
+                    />
+                    <div className="absolute right-1.5 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = parseFloat(movementQty) || 0;
+                          setMovementQty(String(Math.max(0.1, +(val - 1).toFixed(2))));
+                        }}
+                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
+                        title="Restar 1"
+                      >
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = parseFloat(movementQty) || 0;
+                          setMovementQty(String(+(val + 1).toFixed(2)));
+                        }}
+                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
+                        title="Sumar 1"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  {/* Preset Quick Chips */}
+                  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                    <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Rápido:</span>
+                    {[1, 2, 5, 10].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setMovementQty(String(num))}
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md border transition-colors cursor-pointer ${
+                          movementQty === String(num)
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    {selectedSupply && movementType === 'salida' && selectedSupply.currentStock > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setMovementQty(String(selectedSupply.currentStock))}
+                        className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+                        title="Tomar todo el stock disponible"
+                      >
+                        Máx ({selectedSupply.currentStock})
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Operativo Responsable:
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Operativo Responsable:
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      (Manual)
+                    </span>
+                  </div>
                   <input
                     type="text"
-                    readOnly
-                    value={operativeName || 'José del Carmen Sotero'}
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-medium"
+                    required
+                    value={movementOperative}
+                    onChange={(e) => setMovementOperative(e.target.value)}
+                    placeholder="Ej. José del Carmen Sotero / Admin"
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:outline-blue-500"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Nombre del personal o admin que retira/reingresa
+                  </p>
                 </div>
               </div>
 
@@ -902,28 +993,56 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Cantidad Utilizada:
+                    Cantidad ({editingMovement.unit}):
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={editQty}
-                    onChange={(e) => setEditQty(Math.max(1, Number(e.target.value)))}
-                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono focus:outline-blue-500"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      required
+                      placeholder="0"
+                      value={editQty}
+                      onChange={(e) => setEditQty(e.target.value)}
+                      className="w-full pl-3.5 pr-20 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono font-bold text-slate-900 focus:outline-blue-500"
+                    />
+                    <div className="absolute right-1.5 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = parseFloat(editQty) || 0;
+                          setEditQty(String(Math.max(0.1, +(val - 1).toFixed(2))));
+                        }}
+                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer"
+                        title="Restar 1"
+                      >
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = parseFloat(editQty) || 0;
+                          setEditQty(String(+(val + 1).toFixed(2)));
+                        }}
+                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer"
+                        title="Sumar 1"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Operativo:
+                    Operativo Responsable:
                   </label>
                   <input
                     type="text"
-                    readOnly
                     value={editingMovement.operativeName}
+                    readOnly
                     className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-medium"
                   />
                 </div>
@@ -1000,9 +1119,11 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
                 <input
                   type="number"
                   min="0"
+                  step="any"
                   required
+                  placeholder="0"
                   value={newAdjustStockValue}
-                  onChange={(e) => setNewAdjustStockValue(Math.max(0, Number(e.target.value)))}
+                  onChange={(e) => setNewAdjustStockValue(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-base font-bold font-mono rounded-xl border border-slate-200 bg-white focus:outline-blue-500"
                 />
               </div>
