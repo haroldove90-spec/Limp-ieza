@@ -513,7 +513,7 @@ export const supabaseService = {
             clientAddress: q.client_address,
             items: q.items || [],
             subtotal: Number(q.subtotal),
-            taxRate: Number(q.tax_rate),
+            taxRate: Number(q.tax_rate) <= 1 ? Math.round(Number(q.tax_rate) * 100) : Number(q.tax_rate),
             taxAmount: Number(q.tax_amount),
             total: Number(q.total),
             serviceConditions: q.service_conditions,
@@ -726,6 +726,12 @@ export const supabaseService = {
       const empOrConditions = [`id.eq.${userId}`];
       if (userId.startsWith('USR-')) {
         empOrConditions.push(`id.eq.${userId.replace('USR-', 'EMP-')}`);
+      }
+      if (userId === 'USR-HAROLD-01' || data.username === 'haroldo90' || data.email === 'haroldo90@hotmail.com') {
+        empOrConditions.push('id.eq.EMP-00');
+      }
+      if (userId === 'USR-JOSE-02' || data.username === 'josesers' || data.email === 'contacto.sers@gmail.com') {
+        empOrConditions.push('id.eq.EMP-04');
       }
       if (data.username) {
         empOrConditions.push(`username.eq.${data.username}`);
@@ -976,6 +982,7 @@ export const supabaseService = {
   // Save quotation
   async saveQuotation(quote: Quotation): Promise<{ success: boolean; error?: string }> {
     try {
+      const safeTaxRate = quote.taxRate > 1 ? Number((quote.taxRate / 100).toFixed(2)) : quote.taxRate;
       const payload = {
         id: quote.id,
         folio: quote.folio,
@@ -994,7 +1001,7 @@ export const supabaseService = {
         client_address: quote.clientAddress,
         items: quote.items || [],
         subtotal: quote.subtotal,
-        tax_rate: quote.taxRate,
+        tax_rate: safeTaxRate,
         tax_amount: quote.taxAmount,
         total: quote.total,
         service_conditions: quote.serviceConditions,

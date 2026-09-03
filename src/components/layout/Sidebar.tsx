@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole, AppUser } from '../../types';
-import { Sparkles, LogOut, LucideIcon, User, Settings, ShieldCheck, HardHat, Building2 } from 'lucide-react';
+import { Sparkles, LogOut, LucideIcon, User, Settings } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 import { PWAInstallButton } from '../common/PWAInstallButton';
 
@@ -146,56 +146,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <User className="w-3.5 h-3.5" />
             </div>
           </button>
-        )}
-
-        {/* Admin Multi-Role Navigation (Strictly visible only if logged in user is Admin) */}
-        {isAdmin && onSelectRole && (
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                Navegar Roles (Admin)
-              </span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Acceso Total Concedido"></span>
-            </div>
-            <div className="grid grid-cols-1 gap-1">
-              <button
-                type="button"
-                onClick={() => onSelectRole('admin')}
-                className={`w-full py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
-                  currentRole === 'admin'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                <span>Panel Administrador</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onSelectRole('operative')}
-                className={`w-full py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
-                  currentRole === 'operative'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                }`}
-              >
-                <HardHat className="w-3.5 h-3.5 text-amber-500" />
-                <span>Vista Operativa</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onSelectRole('client')}
-                className={`w-full py-1.5 px-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
-                  currentRole === 'client'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Portal de Cliente</span>
-              </button>
-            </div>
-          </div>
         )}
 
         {/* PWA In-App Install Button */}

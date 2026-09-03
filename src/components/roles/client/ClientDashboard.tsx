@@ -23,7 +23,9 @@ import {
   MapPin,
   ShieldCheck,
   UserCheck,
-  Building
+  Building,
+  Box,
+  Package
 } from 'lucide-react';
 import {
   CleaningService,
@@ -118,17 +120,24 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [orderNotes, setOrderNotes] = useState('');
   const [orderSuccessAlert, setOrderSuccessAlert] = useState(false);
 
-  // Filter client data with fallback to ensure real test data displays
-  const matchedServices = services.filter(
-    (s) => s.clientName.toLowerCase().includes(clientName.toLowerCase()) || s.clientName.includes('SkyTower')
-  );
-  const clientServices = matchedServices.length > 0 ? matchedServices : services;
+  // Safe client name and identifier fallback
+  const safeClientName = clientName || clientProfile?.name || 'Cliente';
+  const clientLower = safeClientName.toLowerCase().trim();
 
-  const matchedIncidents = incidents.filter(
-    (i) => i.clientName.toLowerCase().includes(clientName.toLowerCase()) || i.clientName.includes('SkyTower')
-  );
-  const clientIncidents = matchedIncidents.length > 0 ? matchedIncidents : incidents;
-  const currentReport = cycleReports[0] || undefined;
+  // Filter client data strictly and defensively without arbitrary fallbacks
+  const clientServices = (services || []).filter((s) => {
+    if (!s) return false;
+    if (!clientLower || clientLower === 'cliente') return true;
+    return (s.clientName || '').toLowerCase().includes(clientLower);
+  });
+
+  const clientIncidents = (incidents || []).filter((i) => {
+    if (!i) return false;
+    if (!clientLower || clientLower === 'cliente') return true;
+    return (i.clientName || '').toLowerCase().includes(clientLower);
+  });
+
+  const currentReport = (cycleReports && cycleReports.length > 0) ? cycleReports[0] : undefined;
 
   // Technician in charge
   const technicianName =
@@ -150,7 +159,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       `${(s.tasks || []).filter((t) => t.completed).length}/${(s.tasks || []).length} completadas`,
       `${(s.evidences || []).length} fotos adjuntas`
     ]);
-    exportToExcel(`Bitacora_Servicios_${clientName.replace(/\s+/g, '_')}`, headers, rows);
+    exportToExcel(`Bitacora_Servicios_${safeClientName.replace(/\s+/g, '_')}`, headers, rows);
   };
 
   const handleShareServicesWhatsApp = () => {
@@ -158,7 +167,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     const completed = clientServices.filter((s) => s.status === 'completado').length;
     const text =
       `🏢 *REPORTE DE SERVICIOS Y CALIDAD - ${COMPANY_BRAND.name.toUpperCase()}*\n` +
-      `📍 *Cliente / Sede:* ${clientName}\n` +
+      `📍 *Cliente / Sede:* ${safeClientName}\n` +
       `📅 *Fecha:* ${today}\n` +
       `📊 *Resumen:* ${completed} de ${clientServices.length} servicios completados\n` +
       `👷 *Técnico Responsable:* ${technicianName}\n\n` +
@@ -166,7 +175,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       clientServices
         .map(
           (s) =>
-            `• ${s.date} (${s.timeSlot}) - *${s.status.toUpperCase()}*\n  Técnico: ${s.operativeName} | ${s.evidences.length} fotos de evidencia`
+            `• ${s.date} (${s.timeSlot}) - *${(s.status || 'PROGRAMADO').toUpperCase()}*\n  Técnico: ${s.operativeName || 'Personal asignado'} | ${(s.evidences || []).length} fotos de evidencia`
         )
         .join('\n\n') +
       `\n\n✨ *Gestión y Transparencia Operativa ${COMPANY_BRAND.name}*`;
@@ -270,14 +279,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 </body>
 </html>`;
 
-    exportToHTMLPDF(`Reporte_Servicios_${clientName.replace(/\s+/g, '_')}_${today}`, html);
+    exportToHTMLPDF(`Reporte_Servicios_${safeClientName.replace(/\s+/g, '_')}_${today}`, html);
   };
 
   // --- EXPORT & SHARE: 3-DAY SUPPLY REPORT ---
   const handleExport3DayReportExcel = () => {
     if (!currentReport) return;
     const headers = ['Insumo', 'Stock Inicial', 'Consumido (3 Días)', 'Stock Restante', 'Unidad', 'Pedido Sugerido'];
-    const rows = currentReport.items.map((i) => [
+    const rows = (currentReport.items || []).map((i) => [
       i.supplyName,
       i.initialStock,
       (i as any).consumed ?? (i as any).consumed3Days ?? 0,
@@ -285,7 +294,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       i.unit,
       (i as any).recommendedOrder ?? (i as any).suggestedReorder ?? 0
     ]);
-    exportToExcel(`Reporte_Insumos_3Dias_${clientName.replace(/\s+/g, '_')}`, headers, rows);
+    exportToExcel(`Reporte_Insumos_3Dias_${safeClientName.replace(/\s+/g, '_')}`, headers, rows);
   };
 
   const handleShare3DayReportWhatsApp = () => {
@@ -293,11 +302,11 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     const period = (currentReport as any).period || `${currentReport.periodStart} al ${currentReport.periodEnd}`;
     const text =
       `📦 *BALANCE DE CONSUMO DE INSUMOS (3 DÍAS) - ${COMPANY_BRAND.name.toUpperCase()}*\n` +
-      `📍 *Cliente:* ${clientName}\n` +
+      `📍 *Cliente:* ${safeClientName}\n` +
       `🗓️ *Período:* ${period}\n` +
       `👮 *Auditor:* ${(currentReport as any).supervisorName || 'Ing. Marco Valdés'}\n\n` +
       `📊 *ESTADO DE EXISTENCIAS Y REPOSICIÓN:*\n` +
-      currentReport.items
+      (currentReport.items || [])
         .map(
           (i) =>
             `• *${i.supplyName}*\n  Existencia: ${(i as any).remainingStock ?? 0} ${i.unit} | 🛒 Pedido sugerido: *${(i as any).recommendedOrder ?? 0} ${i.unit}*`
@@ -311,15 +320,15 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const handleSend3DayReportEmail = () => {
     if (!currentReport) return;
     const period = (currentReport as any).period || `${currentReport.periodStart} al ${currentReport.periodEnd}`;
-    const subject = `[INFORME DE CONSUMO DE INSUMOS] ${clientName} - Ciclo (${period})`;
+    const subject = `[INFORME DE CONSUMO DE INSUMOS] ${safeClientName} - Ciclo (${period})`;
     const body =
       `Estimado Departamento de Compras / Administración,\n\n` +
       `Se remite el informe de consumo y sugerencias de reabastecimiento de insumos:\n\n` +
-      `• Sede: ${clientName}\n` +
+      `• Sede: ${safeClientName}\n` +
       `• Período: ${period}\n` +
       `• Supervisor / Auditor: ${(currentReport as any).supervisorName || 'Ing. Marco Valdés'}\n\n` +
       `BALANCE DE INVENTARIO Y REPOSICIÓN:\n` +
-      currentReport.items
+      (currentReport.items || [])
         .map(
           (i) =>
             ` - ${i.supplyName}: Restante ${(i as any).remainingStock ?? 0} ${i.unit} (Sugerencia pedido: ${(i as any).recommendedOrder ?? 0} ${i.unit})`
@@ -329,7 +338,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
     setEmailModalData({
       title: 'Enviar Informe de Insumos (3 Días)',
-      defaultRecipient: 'compras@skytower.com',
+      defaultRecipient: clientProfile?.email || 'contacto@cliente.com',
       defaultSubject: subject,
       defaultBody: body,
       reportType: 'Consumo de Insumos (3 Días)',
@@ -384,7 +393,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       </tr>
     </thead>
     <tbody>
-      ${currentReport.items
+      ${(currentReport.items || [])
         .map(
           (i) => `
         <tr>
@@ -413,45 +422,47 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       i.id,
       i.date,
       i.time,
-      i.type.replace('_', ' ').toUpperCase(),
+      (i.type || 'general').replace('_', ' ').toUpperCase(),
       i.title,
       i.location,
       i.operativeName,
-      i.status.toUpperCase(),
+      (i.status || 'pendiente').toUpperCase(),
       i.adminResolution || 'En revisión operativa'
     ]);
-    exportToExcel(`Incidencias_${clientName.replace(/\s+/g, '_')}`, headers, rows);
+    exportToExcel(`Incidencias_${safeClientName.replace(/\s+/g, '_')}`, headers, rows);
   };
 
   const handleShareIncidentWhatsApp = (inc: IncidentReport) => {
+    const incType = (inc.type || 'general').replace('_', ' ').toUpperCase();
     const text =
       `⚠️ *REPORTE DE INCIDENCIA TÉCNICA - FOLIO ${inc.id}*\n` +
-      `📍 *Ubicación:* ${inc.location} (${inc.clientName})\n` +
+      `📍 *Ubicación:* ${inc.location || 'Instalaciones'} (${inc.clientName || safeClientName})\n` +
       `🕒 *Fecha/Hora:* ${inc.date} a las ${inc.time} hrs\n` +
-      `📌 *Tipo:* ${inc.type.replace('_', ' ').toUpperCase()}\n` +
+      `📌 *Tipo:* ${incType}\n` +
       `📝 *Título:* ${inc.title}\n` +
       `🔍 *Detalle:* ${inc.description}\n` +
-      `👮 *Técnico:* ${inc.operativeName}\n` +
+      `👮 *Técnico:* ${inc.operativeName || technicianName}\n` +
       (inc.adminResolution ? `✅ *Resolución:* ${inc.adminResolution}\n` : `⏳ *Estado:* En revisión\n`) +
-      `\n✨ *CleanPro Control de Calidad*`;
+      `\n✨ *${COMPANY_BRAND.name} Control de Calidad*`;
 
     shareViaWhatsApp(text);
   };
 
   const handleSendIncidentEmail = (inc: IncidentReport) => {
+    const incType = (inc.type || 'general').replace('_', ' ').toUpperCase();
     const subject = `[REPORTE DE INCIDENCIA] Folio ${inc.id} - ${inc.title}`;
     const body =
       `Estimada Administración / Mantenimiento,\n\n` +
       `Se comparte el informe de incidencia registrado en sitio:\n\n` +
       `• Folio: ${inc.id}\n` +
-      `• Sede: ${inc.clientName}\n` +
-      `• Ubicación: ${inc.location}\n` +
-      `• Tipo: ${inc.type.replace('_', ' ').toUpperCase()}\n` +
+      `• Sede: ${inc.clientName || safeClientName}\n` +
+      `• Ubicación: ${inc.location || 'Instalaciones'}\n` +
+      `• Tipo: ${incType}\n` +
       `• Fecha / Hora: ${inc.date} ${inc.time} hrs\n` +
-      `• Reportado por Técnico: ${inc.operativeName}\n\n` +
+      `• Reportado por Técnico: ${inc.operativeName || technicianName}\n\n` +
       `DESCRIPCIÓN DEL HECHO:\n${inc.description}\n\n` +
       (inc.adminResolution ? `RESOLUCIÓN ADMINISTRATIVA:\n${inc.adminResolution}\n\n` : '') +
-      `Atentamente,\nPortal del Cliente CleanPro`;
+      `Atentamente,\nPortal del Cliente ${COMPANY_BRAND.name}`;
 
     setEmailModalData({
       title: 'Compartir Reporte de Incidencia',
@@ -826,7 +837,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           )}
 
           {/* Current 3-Day Report Card */}
-          {currentReport && (
+          {currentReport ? (
             <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
                 <div>
@@ -845,7 +856,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
               {/* Items Inventory Status (Quantities only, NO prices) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {currentReport.items.map((item, itemIdx) => {
+                {(currentReport.items || []).map((item, itemIdx) => {
                   const remaining = (item as any).remainingStock ?? (item as any).currentRemaining ?? 0;
                   const initial = item.initialStock || 1;
                   const percent = Math.min(100, Math.max(0, Math.round((remaining / initial) * 100)));
@@ -913,10 +924,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                     Sugerencia Operativa de Reposición:
                   </h4>
                   <p className="text-xs text-slate-600 font-medium mt-0.5">
-                    {currentReport.items
+                    {(currentReport.items || [])
                       .filter((i) => ((i as any).recommendedOrder ?? (i as any).suggestedReorder ?? 0) > 0)
                       .map((i) => `${(i as any).recommendedOrder ?? (i as any).suggestedReorder} ${i.unit} de ${i.supplyName}`)
-                      .join(' • ')}
+                      .join(' • ') || 'Inventario en niveles estables'}
                   </p>
                 </div>
 
@@ -928,6 +939,16 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 </button>
               </div>
             </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm text-center space-y-3">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto font-bold">
+                <Box className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold text-slate-800 text-base">Sin balance de insumos registrado</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                El balance de consumo y reposición se mostrará en cuanto la supervisión registre la primera auditoría de ciclo para esta sede.
+              </p>
+            </div>
           )}
 
           {/* Supply Requests History */}
@@ -937,47 +958,53 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </h3>
 
             <div className="space-y-3">
-              {supplyRequests.map((req, reqIdx) => (
-                <div
-                  key={req.id || `client-req-${reqIdx}`}
-                  className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-slate-900 text-sm">{req.id}</span>
-                      <span className="text-xs text-slate-400">({req.requestDate})</span>
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                          req.status === 'despachado'
-                            ? 'bg-green-100 text-green-700'
+              {(supplyRequests || []).length === 0 ? (
+                <div className="p-6 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-slate-400 text-xs font-medium">No has emitido requerimientos adicionales aún.</p>
+                </div>
+              ) : (
+                (supplyRequests || []).map((req, reqIdx) => (
+                  <div
+                    key={req.id || `client-req-${reqIdx}`}
+                    className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-slate-900 text-sm">{req.id}</span>
+                        <span className="text-xs text-slate-400">({req.requestDate})</span>
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
+                            req.status === 'despachado'
+                              ? 'bg-green-100 text-green-700'
+                              : req.status === 'aprobado'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          {req.status === 'despachado'
+                            ? 'Despachado en Sede'
                             : req.status === 'aprobado'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        {req.status === 'despachado'
-                          ? 'Despachado en Sede'
-                          : req.status === 'aprobado'
-                          ? 'Aprobado para Entrega'
-                          : 'Pendiente de Aprobación'}
-                      </span>
+                            ? 'Aprobado para Entrega'
+                            : 'Pendiente de Aprobación'}
+                        </span>
+                      </div>
+
+                      <p className="text-xs md:text-sm text-slate-600 font-medium">
+                        {(req.items || []).map((i) => `${i.quantity} ${i.unit} de ${i.supplyName}`).join(' • ')}
+                      </p>
+                      {req.notes && (
+                        <p className="text-xs text-slate-400 italic mt-1">Nota: {req.notes}</p>
+                      )}
                     </div>
 
-                    <p className="text-xs md:text-sm text-slate-600 font-medium">
-                      {req.items.map((i) => `${i.quantity} ${i.unit} de ${i.supplyName}`).join(' • ')}
-                    </p>
-                    {req.notes && (
-                      <p className="text-xs text-slate-400 italic mt-1">Nota: {req.notes}</p>
-                    )}
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-xl">
+                        {(req.items || []).reduce((sum, item) => sum + item.quantity, 0)} unidades solicitadas
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="text-right shrink-0">
-                    <span className="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-xl">
-                      {req.items.reduce((sum, item) => sum + item.quantity, 0)} unidades solicitadas
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
