@@ -787,70 +787,16 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
                       </span>
                     )}
                   </div>
-                  <div className="relative flex items-center">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.01"
-                      required
-                      placeholder="0"
-                      value={movementQty}
-                      onChange={(e) => setMovementQty(e.target.value)}
-                      className="w-full pl-3.5 pr-20 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono font-bold text-slate-900 focus:outline-blue-500 focus:border-blue-500"
-                    />
-                    <div className="absolute right-1.5 flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const val = parseFloat(movementQty) || 0;
-                          setMovementQty(String(Math.max(0.1, +(val - 1).toFixed(2))));
-                        }}
-                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
-                        title="Restar 1"
-                      >
-                        -
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const val = parseFloat(movementQty) || 0;
-                          setMovementQty(String(+(val + 1).toFixed(2)));
-                        }}
-                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
-                        title="Sumar 1"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                  {/* Preset Quick Chips */}
-                  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                    <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Rápido:</span>
-                    {[1, 2, 5, 10].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setMovementQty(String(num))}
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md border transition-colors cursor-pointer ${
-                          movementQty === String(num)
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
-                        }`}
-                      >
-                        {num}
-                      </button>
-                    ))}
-                    {selectedSupply && movementType === 'salida' && selectedSupply.currentStock > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setMovementQty(String(selectedSupply.currentStock))}
-                        className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
-                        title="Tomar todo el stock disponible"
-                      >
-                        Máx ({selectedSupply.currentStock})
-                      </button>
-                    )}
-                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    required
+                    placeholder="0"
+                    value={movementQty}
+                    onChange={(e) => setMovementQty(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono font-bold text-slate-900 focus:outline-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -998,42 +944,16 @@ export const WarehouseOperativeModule: React.FC<WarehouseOperativeModuleProps> =
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
                     Cantidad ({editingMovement.unit}):
                   </label>
-                  <div className="relative flex items-center">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.01"
-                      required
-                      placeholder="0"
-                      value={editQty}
-                      onChange={(e) => setEditQty(e.target.value)}
-                      className="w-full pl-3.5 pr-20 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono font-bold text-slate-900 focus:outline-blue-500"
-                    />
-                    <div className="absolute right-1.5 flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const val = parseFloat(editQty) || 0;
-                          setEditQty(String(Math.max(0.1, +(val - 1).toFixed(2))));
-                        }}
-                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer"
-                        title="Restar 1"
-                      >
-                        -
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const val = parseFloat(editQty) || 0;
-                          setEditQty(String(+(val + 1).toFixed(2)));
-                        }}
-                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer"
-                        title="Sumar 1"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    required
+                    placeholder="0"
+                    value={editQty}
+                    onChange={(e) => setEditQty(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono font-bold text-slate-900 focus:outline-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
