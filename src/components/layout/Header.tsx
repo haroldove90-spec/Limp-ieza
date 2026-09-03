@@ -111,54 +111,6 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Center: Admin Multi-Role Quick Access (Strictly exclusive for Admin) */}
-      {isAdmin && onSelectRole && (
-        <div className="hidden md:flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shadow-2xs">
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider px-2 select-none">
-            Navegar Rol:
-          </span>
-          <button
-            type="button"
-            onClick={() => onSelectRole('admin')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              currentRole === 'admin'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
-            }`}
-            title="Ir a Panel Administrador"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-            <span>Admin</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectRole('operative')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              currentRole === 'operative'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
-            }`}
-            title="Navegar como Operativo"
-          >
-            <HardHat className="w-3.5 h-3.5 text-amber-400" />
-            <span>Operativo</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectRole('client')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              currentRole === 'client'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
-            }`}
-            title="Navegar como Cliente"
-          >
-            <Building2 className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Cliente</span>
-          </button>
-        </div>
-      )}
-
       {/* Right: User Profile & Logout */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* PWA Install Button */}

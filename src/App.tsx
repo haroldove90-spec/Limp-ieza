@@ -194,43 +194,53 @@ export default function App() {
     try {
       const data = await supabaseService.fetchAll();
 
-      if (data.clients && data.clients.length > 0) {
+      if (data.clients !== null) {
         setClients(data.clients);
       }
-      if (data.employees && data.employees.length > 0) {
+      if (data.employees !== null) {
+        // Filter out any legacy mock employees
+        const filtered = data.employees.filter(
+          (e) =>
+            e.id !== 'EMP-01' &&
+            e.id !== 'EMP-02' &&
+            e.id !== 'EMP-03' &&
+            !e.name.toLowerCase().includes('carlos mendoza') &&
+            !e.name.toLowerCase().includes('lucía santos') &&
+            !e.name.toLowerCase().includes('miguel rivas')
+        );
         // Always ensure Harold and José exist
-        const hasHarold = data.employees.some(
+        const hasHarold = filtered.some(
           (e) => e.id === 'EMP-00' || e.username === 'haroldo90'
         );
-        const hasJose = data.employees.some(
+        const hasJose = filtered.some(
           (e) => e.id === 'EMP-04' || e.username === 'josesers'
         );
-        const finalEmployees = [...data.employees];
+        const finalEmployees = [...filtered];
         if (!hasHarold) {
-          const harold = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-00')!;
+          const harold = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-00');
           if (harold) finalEmployees.unshift(harold);
         }
         if (!hasJose) {
-          const jose = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-04')!;
+          const jose = INITIAL_EMPLOYEES.find((e) => e.id === 'EMP-04');
           if (jose) finalEmployees.push(jose);
         }
         setEmployees(finalEmployees);
       }
-      if (data.services && data.services.length > 0) {
-        setServices(data.services);
+      if (data.services !== null) {
+        setServices(data.services.filter((s) => s.id !== 'SRV-101' && s.id !== 'SRV-102'));
       }
-      if (data.incidents && data.incidents.length > 0) {
-        setIncidents(data.incidents);
+      if (data.incidents !== null) {
+        setIncidents(data.incidents.filter((i) => i.id !== 'INC-101'));
       }
-      if (data.supplies && data.supplies.length > 0) setSupplies(data.supplies);
-      if (data.kitItems && data.kitItems.length > 0) setKitItems(data.kitItems);
-      if (data.warehouseMovements && data.warehouseMovements.length > 0)
+      if (data.supplies !== null) setSupplies(data.supplies);
+      if (data.kitItems !== null) setKitItems(data.kitItems);
+      if (data.warehouseMovements !== null)
         setWarehouseMovements(data.warehouseMovements);
-      if (data.cycleReports && data.cycleReports.length > 0) setCycleReports(data.cycleReports);
-      if (data.supplyRequests && data.supplyRequests.length > 0)
+      if (data.cycleReports !== null) setCycleReports(data.cycleReports);
+      if (data.supplyRequests !== null)
         setSupplyRequests(data.supplyRequests);
-      if (data.finances && data.finances.length > 0) setFinances(data.finances);
-      if (data.quotations && data.quotations.length > 0) setQuotations(data.quotations);
+      if (data.finances !== null) setFinances(data.finances);
+      if (data.quotations !== null) setQuotations(data.quotations);
 
       // Sync fresh user credentials and avatar from app_users
       if (data.users && data.users.length > 0) {
@@ -1034,6 +1044,11 @@ export default function App() {
     }
   };
 
+  const currentClientProfile = clients[0];
+  const assignedEmp = employees.find(
+    (e) => e.id === currentClientProfile?.assignedEmployeeId || e.name === currentClientProfile?.assignedEmployeeName
+  ) || employees[0];
+
   // Define Navigation Items based on Current Active Role
   const getNavItems = (): NavItem[] => {
     switch (currentRole) {
@@ -1049,7 +1064,18 @@ export default function App() {
         return [
           { id: 'evidencias_cliente', name: 'Evidencias', icon: Camera },
           { id: 'insumos_cliente', name: 'Reporte 3 Días', icon: Layers },
-          { id: 'incidencias_cliente', name: 'Incidencias', icon: AlertTriangle, badgeCount: incidents.filter((i) => i.clientName.toLowerCase().includes(currentClientProfile?.name?.toLowerCase() || 'skytower') && i.status !== 'resuelto').length },
+          {
+            id: 'incidencias_cliente',
+            name: 'Incidencias',
+            icon: AlertTriangle,
+            badgeCount: incidents.filter((i) => {
+              if (i.status === 'resuelto') return false;
+              if (currentClientProfile?.name) {
+                return i.clientName.toLowerCase().includes(currentClientProfile.name.toLowerCase());
+              }
+              return true;
+            }).length
+          },
           { id: 'tecnico_cliente', name: 'Técnico Asignado', icon: UserCheck }
         ];
       case 'admin':
@@ -1070,11 +1096,6 @@ export default function App() {
   const activeNavItem = navItems.find((item) => item.id === activeTab);
   const activeModuleName = activeNavItem?.name || 'Panel de Control';
 
-  const currentClientProfile = clients[0];
-  const assignedEmp = employees.find(
-    (e) => e.id === currentClientProfile?.assignedEmployeeId || e.name === currentClientProfile?.assignedEmployeeName
-  ) || employees[0];
-
   // If on Home role selection screen
   if (currentRole === 'home') {
     return (
@@ -1093,7 +1114,7 @@ export default function App() {
         <SystemWorkflowModal
           isOpen={isWorkflowModalOpen}
           onClose={() => setIsWorkflowModalOpen(false)}
-          clientName="Oficinas Corporativas SkyTower"
+          clientName={currentClientProfile?.name || 'Cliente Corporativo SERS'}
         />
       </>
     );
@@ -1101,7 +1122,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-row">
-      {/* Fullscreen Desktop Left Sidebar */}
+      {/* Fullscreen Desktop Left Sidebar - Central Role Switcher for Admin */}
       <Sidebar
         currentRole={currentRole}
         navItems={navItems}
@@ -1121,7 +1142,7 @@ export default function App() {
           currentRole={currentRole}
           activeModuleName={activeModuleName}
           onLogout={handleLogout}
-          clientName="Oficinas SkyTower"
+          clientName={currentClientProfile?.name || 'Cliente Corporativo'}
           operativeName={employees.find((e) => e.id === selectedOperativeId)?.name || 'José del Carmen Sotero'}
           onSelectRole={handleSelectRole}
           onOpenSupabase={() => setIsSupabaseModalOpen(true)}
@@ -1130,39 +1151,6 @@ export default function App() {
           onOpenProfile={() => setIsProfileModalOpen(true)}
           isAdmin={isAdmin}
         />
-
-        {/* Banner de Navegación de Administrador (Visible cuando el Administrador navega como Operativo o Cliente) */}
-        {isAdmin && currentRole !== 'admin' && (
-          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-blue-800 shadow-md sticky top-0 z-30">
-            <div className="flex items-center gap-2.5 text-xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-bold text-amber-300">Modo Navegación Administrador:</span>
-              <span className="text-slate-200">
-                Estás visualizando la app como{' '}
-                <strong className="text-white">
-                  {currentRole === 'operative' ? '👷 Personal Técnico Operativo (José del Carmen Sotero)' : '🏢 Portal de Cliente (Oficinas SkyTower)'}
-                </strong>
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleSelectRole(currentRole === 'operative' ? 'client' : 'operative')}
-                className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-              >
-                Ver como {currentRole === 'operative' ? 'Cliente' : 'Operativo'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSelectRole('admin')}
-                className="px-3.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-200" />
-                <span>Volver al Dashboard Admin</span>
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Dynamic Role Views */}
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
