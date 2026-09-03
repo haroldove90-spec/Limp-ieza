@@ -822,38 +822,66 @@ export default function App() {
     });
   };
 
-  const handleAddClient = (client: Omit<ClientProfile, 'id'>) => {
+  const handleAddClient = async (client: Omit<ClientProfile, 'id'>) => {
     const newCli: ClientProfile = {
       ...client,
       id: `CLI-${Date.now().toString().slice(-6)}`
     };
     setClients((prev) => [...prev, newCli]);
-    supabaseService.saveClient(newCli).catch((err) => console.error('Error guardando cliente en Supabase:', err));
+    try {
+      const res = await supabaseService.saveClient(newCli);
+      if (res.success) {
+        console.log(`Cliente "${newCli.name}" guardado exitosamente en Supabase.`);
+      } else {
+        console.warn(`Aviso al guardar cliente "${newCli.name}" en Supabase:`, res.error);
+      }
+    } catch (err) {
+      console.error('Error guardando cliente en Supabase:', err);
+    }
   };
 
-  const handleUpdateClient = (updatedClient: ClientProfile) => {
+  const handleUpdateClient = async (updatedClient: ClientProfile) => {
     setClients((prev) =>
       prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
     );
-    supabaseService.saveClient(updatedClient).catch((err) => console.error('Error actualizando cliente en Supabase:', err));
+    try {
+      const res = await supabaseService.saveClient(updatedClient);
+      if (!res.success) {
+        console.warn('Aviso al actualizar cliente en Supabase:', res.error);
+      }
+    } catch (err) {
+      console.error('Error actualizando cliente en Supabase:', err);
+    }
   };
 
-  const handleDeleteClient = (clientId: string) => {
+  const handleDeleteClient = async (clientId: string) => {
     setClients((prev) => prev.filter((c) => c.id !== clientId));
-    supabaseService.deleteClient(clientId).catch((err) => console.error('Error eliminando cliente en Supabase:', err));
+    try {
+      await supabaseService.deleteClient(clientId);
+    } catch (err) {
+      console.error('Error eliminando cliente en Supabase:', err);
+    }
   };
 
-  const handleToggleClientStatus = (clientId: string) => {
+  const handleToggleClientStatus = async (clientId: string) => {
+    let clientToSave: ClientProfile | null = null;
     setClients((prev) =>
       prev.map((c) => {
         if (c.id !== clientId) return c;
         const currentStatus = (c as any).status || 'activo';
         const newStatus = currentStatus === 'activo' ? 'inactivo' : 'activo';
         const updated = { ...c, status: newStatus as any };
-        supabaseService.saveClient(updated).catch((err) => console.error('Error cambiando estatus cliente en Supabase:', err));
+        clientToSave = updated;
         return updated;
       })
     );
+    if (clientToSave) {
+      try {
+        await supabaseService.saveClient(clientToSave);
+      } catch (err) {
+        console.error('Error cambiando estatus cliente en Supabase:', err);
+      }
+    }
   };
 
   const handleAddEmployee = (

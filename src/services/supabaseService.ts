@@ -569,10 +569,16 @@ export const supabaseService = {
         job_title: emp.jobTitle || emp.role || null,
         updated_at: new Date().toISOString()
       };
-      const { error } = await supabase.from('employees').upsert(payload, { onConflict: 'id' });
+      let { error } = await supabase.from('employees').upsert(payload, { onConflict: 'id' });
+      if (error && (error.code === 'PGRST125' || error.code === 'PGRST205' || error.message?.includes('Invalid path'))) {
+        console.warn('PostgREST recargando esquema, reintentando guardar empleado en 600ms...');
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        const retryRes = await supabase.from('employees').upsert(payload);
+        error = retryRes.error;
+      }
       if (error) {
-        console.error('Error in employees.upsert:', error);
-        throw error;
+        console.error('Error in employees.upsert tras reintento:', error);
+        return { success: false, error: error.message || 'Error guardando colaborador' };
       }
 
       // Also upsert to app_users if has username and password
@@ -814,16 +820,23 @@ export const supabaseService = {
         notes: client.notes || null,
         updated_at: new Date().toISOString()
       };
-      const { error } = await supabase.from('clients').upsert(payload, { onConflict: 'id' });
+      // Try upsert with fallback and automatic retry
+      let { error } = await supabase.from('clients').upsert(payload, { onConflict: 'id' });
+      
+      // Auto-retry once if PostgREST was briefly reloading schema (PGRST125 / PGRST205)
+      if (error && (error.code === 'PGRST125' || error.code === 'PGRST205' || error.message?.includes('Invalid path'))) {
+        console.warn('PostgREST recargando esquema, reintentando guardar cliente en 600ms...');
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        const retryRes = await supabase.from('clients').upsert(payload);
+        error = retryRes.error;
+      }
+
       if (error) {
-        console.error('Error in clients.upsert:', error);
-        if (error.code === 'PGRST125') {
-          return {
-            success: false,
-            error: 'Error de ruta en Supabase (PGRST125): el servidor aún está recargando el esquema. Por favor ejecuta "NOTIFY pgrst, \'reload schema\';" o recarga en 5 segundos.'
-          };
-        }
-        throw error;
+        console.error('Error in clients.upsert tras reintento:', error);
+        return {
+          success: false,
+          error: error.message || 'Error guardando cliente en Supabase'
+        };
       }
 
       // Also upsert to app_users if client has credentials
