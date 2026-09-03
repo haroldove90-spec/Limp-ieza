@@ -9,14 +9,7 @@ import {
   Eye,
   EyeOff,
   LogIn,
-  ShieldCheck,
-  HardHat,
-  Building2,
-  AlertCircle,
-  CheckCircle2,
-  KeyRound,
-  ArrowRight,
-  Info
+  AlertCircle
 } from 'lucide-react';
 import { COMPANY_BRAND } from '../../constants/branding';
 
@@ -269,12 +262,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     }
   };
 
-  const handleQuickFill = (userOrEmail: string, pass: string) => {
-    setIdentifier(userOrEmail);
-    setPassword(pass);
-    setErrorMessage(null);
-  };
-
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xl space-y-6">
       {/* App Header & Official Brand Icon */}
@@ -290,15 +277,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           {COMPANY_BRAND.name}
         </h2>
         <p className="text-xs text-slate-500 font-medium">
-          Acceso seguro al sistema con <strong>Usuario</strong> o <strong>Correo Electrónico</strong>
-        </p>
-      </div>
-
-      {/* Dual Access Indicator Badge */}
-      <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-3 flex items-start gap-2.5 text-xs text-blue-800">
-        <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-        <p className="leading-relaxed">
-          Puedes ingresar con tu <strong>nombre de usuario</strong> (ej. <code className="bg-blue-100 px-1 py-0.5 rounded text-[11px] font-mono">haroldo90</code>) o con tu <strong>correo</strong> (ej. <code className="bg-blue-100 px-1 py-0.5 rounded text-[11px] font-mono">haroldo90@hotmail.com</code>).
+          Acceso seguro a la plataforma
         </p>
       </div>
 
@@ -317,9 +296,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             <label className="text-xs font-bold text-slate-700">
               Usuario o Correo Electrónico
             </label>
-            <span className="text-[10px] font-semibold text-slate-400">
-              {identifier.includes('@') ? 'Detectado: Correo' : identifier.trim() ? 'Detectado: Usuario' : 'Cualquiera de los dos'}
-            </span>
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -332,7 +308,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             <input
               type="text"
               required
-              placeholder="ej. haroldo90 o haroldo90@hotmail.com"
+              placeholder="Ingresa tu usuario o correo electrónico"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-medium"
@@ -379,77 +355,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           <span>{loading ? 'Validando acceso...' : 'Iniciar Sesión'}</span>
         </button>
       </form>
-
-      {/* Acceso Rápido para Pruebas (Usuario o Correo) */}
-      <div className="pt-2 border-t border-slate-100">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2.5">
-          Credenciales Oficiales SERS
-        </p>
-
-        <div className="grid grid-cols-1 gap-2">
-          {/* Harold Anguiano (Admin) */}
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="font-bold text-slate-800 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                Harold Anguiano (Admin)
-              </span>
-              <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                Admin
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('haroldo90', 'Chevropar#1970')}
-                className="px-2 py-1 rounded-lg bg-white hover:bg-blue-50 border border-slate-200 text-[11px] text-slate-700 hover:text-blue-700 cursor-pointer transition-colors"
-                title="Llenar usando nombre de usuario"
-              >
-                Usuario: <strong>haroldo90</strong>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('haroldo90@hotmail.com', 'Chevropar#1970')}
-                className="px-2 py-1 rounded-lg bg-white hover:bg-blue-50 border border-slate-200 text-[11px] text-slate-700 hover:text-blue-700 cursor-pointer transition-colors"
-                title="Llenar usando correo electrónico"
-              >
-                Correo: <strong>haroldo90@hotmail.com</strong>
-              </button>
-            </div>
-          </div>
-
-          {/* José del Carmen Sotero (Operativo) */}
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="font-bold text-slate-800 flex items-center gap-1">
-                <HardHat className="w-3.5 h-3.5 text-amber-500" />
-                José del Carmen Sotero
-              </span>
-              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
-                Operativo
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('josesers', 'Sers#Segura2025!')}
-                className="px-2 py-1 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 text-[11px] text-slate-700 hover:text-amber-800 cursor-pointer transition-colors"
-                title="Llenar usando nombre de usuario"
-              >
-                Usuario: <strong>josesers</strong>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('contacto.sers@gmail.com', 'Sers#Segura2025!')}
-                className="px-2 py-1 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 text-[11px] text-slate-700 hover:text-amber-800 cursor-pointer transition-colors"
-                title="Llenar usando correo electrónico"
-              >
-                Correo: <strong>contacto.sers@gmail.com</strong>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
